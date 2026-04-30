@@ -61,12 +61,12 @@ from src.services.stats import global_logs, global_stats
 logger = logging.getLogger(__name__)
 
 
-async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _callback_handler_impl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     t0 = time.time()
     query = update.callback_query
     if not query or not query.data:
         return
-    await query.answer()
+    # await query.answer() # Removed early answer to prevent conflicts
     t_answer = time.time()
 
     user_id = query.from_user.id
@@ -1230,7 +1230,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         uid = data.split(":")[1]
         m = member_manager.get_all_members().get(uid)
         if not m:
-            await context.bot.answer_callback_query(query.id, "Member tidak ditemukan")
+            await context.bot.answer_callback_query(query.id)
             return
         
         status = "🟢 ON" if m.active else "🔴 OFF"
@@ -1250,7 +1250,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Toggle Member Status
         uid = data.split(":")[1]
         await member_manager.toggle_member(uid)
-        await context.bot.answer_callback_query(query.id, "Status member diubah")
+        await context.bot.answer_callback_query(query.id)
         
         # Redraw
         page_str = next((b.callback_data for row in query.message.reply_markup.inline_keyboard for b in row if b.callback_data and b.callback_data.startswith("p_mem:") and "Prev" in b.text), None)
@@ -1267,7 +1267,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Delete member
         uid = data.split(":")[1]
         await member_manager.remove_member(uid)
-        await context.bot.answer_callback_query(query.id, f"Member {uid} dihapus")
+        await context.bot.answer_callback_query(query.id)
         
         # Redraw
         page_str = next((b.callback_data for row in query.message.reply_markup.inline_keyboard for b in row if b.callback_data and b.callback_data.startswith("p_mem:") and "Prev" in b.text), None)
@@ -1506,3 +1506,25 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except Exception:
             await context.bot.send_message(chat_id=chat_id, text=f"*Backup Data Proxy:*\n\n{backup}", parse_mode="Markdown", reply_markup=back_kb)
         return
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    t_start = time.time()
+    try:
+        await _callback_handler_impl(update, context)
+    except Exception as e:
+        logger.error("Error in callback handler: %s", getattr(e, "message", str(e)))
+    finally:
+        t_end = time.time()
+        elapsed = t_end - t_start
+        data = update.callback_query.data if update.callback_query and update.callback_query.data else "unknown"
+        if elapsed > 1.0:
+            logger.warning("[PERFORMANCE] Callback '%s' took %.2f seconds! WARNING", data, elapsed)
+        else:
+            logger.info("[PERFORMANCE] Callback '%s' took %.2f seconds.", data, elapsed)
+        
+        # Ensure we always answer the query to stop the loading spinner, if not already answered
+        try:
+            if update.callback_query:
+                await update.callback_query.answer()
+        except Exception:
+            pass

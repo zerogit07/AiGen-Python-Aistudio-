@@ -48,7 +48,9 @@ from src.database.proxies import proxy_manager
 from src.database.settings import landing_page_manager
 from src.database.usage import usage_manager
 from src.database.users import user_manager
-from src.core.queue import add_job
+from src.core.queue import add_job, add_check_keys_job
+
+admin_check_keys_cooldown = {}
 from src.services.polling import mark_buttons_used
 from src.services.stats import global_logs, global_stats
 
@@ -704,13 +706,17 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if data == "test_keys_btn":
-        await context.bot.send_message(chat_id=chat_id, text="⏳ Sedang menguji semua key...")
-        result = await api_key_manager.test_all_keys()
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"🔑 *Hasil Test Key:*\n- Valid: 🟢 {result['valid']}\n- Limit: 🟡 {result['limit']}\n- Invalid: 🔴 {result['invalid']}\n- Total: {result['total']}",
-            parse_mode="Markdown",
-        )
+        now = time.time()
+        if user_id in admin_check_keys_cooldown and now - admin_check_keys_cooldown[user_id] < 60:
+            await context.bot.send_message(chat_id=chat_id, text="⏳ Harap tunggu 60 detik sebelum melakukan cek key lagi.")
+            return
+        
+        admin_check_keys_cooldown[user_id] = now
+        try:
+            job_id = await add_check_keys_job(user_id, chat_id)
+            await context.bot.send_message(chat_id=chat_id, text=f"⏳ Permintaan cek API key masuk antrian. ID job: #{job_id}")
+        except Exception as e:
+            await context.bot.send_message(chat_id=chat_id, text=f"❌ Gagal memasukkan ke antrian: {e}")
         return
 
     if data == "enable_all_keys":

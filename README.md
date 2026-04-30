@@ -19,7 +19,7 @@ Bot Telegram yang menghubungkan Freepik AI API untuk generate video dan gambar A
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/abdulrozzaqkla45-ux/AiGen-Bot-Python.git
+git clone https://github.com/zerogit07/AiGen-Python-Aistudio-.git
 cd AiGen-Bot-Python
 ```
 

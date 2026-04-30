@@ -64,6 +64,20 @@ async def _get_redis_pool() -> ArqRedis:
         return _redis_pool
 
 
+async def add_check_keys_job(admin_id: int, chat_id: int) -> str:
+    redis = await _get_redis_pool()
+    job = await redis.enqueue_job(
+        "process_check_keys",
+        admin_id=admin_id,
+        chat_id=chat_id,
+    )
+    if job is None:
+        raise RuntimeError("Gagal memasukkan job ke antrian")
+
+    logger.info("Check keys job queued: %s for admin %s", job.job_id, admin_id)
+    return job.job_id
+
+
 async def add_job(
     user_id: int,
     chat_id: int,

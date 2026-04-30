@@ -222,9 +222,10 @@ def get_manage_models_keyboard(models: list[dict]) -> tuple[str, InlineKeyboardM
     for m in models:
         status_icon = "\U0001f7e2 ON" if m["active"] else "\U0001f534 OFF"
         lines.append(f"- {m['name']}: {status_icon}")
+        btn_text = ("\U0001f534 OFF" if m["active"] else "\U0001f7e2 ON") + f" {m['name']}"
         buttons.append([
             InlineKeyboardButton(
-                f"{'\U0001f534 OFF' if m['active'] else '\U0001f7e2 ON'} {m['name']}",
+                btn_text,
                 callback_data=f"toggle_model:{m['id']}",
             )
         ])

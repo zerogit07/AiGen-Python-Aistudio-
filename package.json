@@ -2,7 +2,7 @@
   "name": "python-telegram-bot",
   "private": true,
   "scripts": {
-    "start": "python3 server.py",
-    "build": "pip install -r requirements.txt"
+    "start": "venv/bin/python server.py",
+    "build": "python3 -m venv venv && venv/bin/pip install -r requirements.txt"
   }
 }

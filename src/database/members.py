@@ -237,6 +237,19 @@ class MemberManager:
             except Exception:
                 pass
 
+    async def toggle_member(self, user_id: int | str) -> bool:
+        id_str = str(user_id)
+        member = self._members.get(id_str)
+        if member:
+            member.active = not member.active
+            if supabase:
+                try:
+                    await supabase.table("members").update({"active": member.active}).eq("user_id", id_str).execute()
+                except Exception as exc:
+                    logger.error("Error toggling member %s: %s", id_str, exc)
+            return True
+        return False
+
     def get_all_members(self) -> dict[str, MemberData]:
         return self._members
 

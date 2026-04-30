@@ -162,6 +162,52 @@ def get_manage_members_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
+import math
+
+def get_member_list_keyboard(members_list: list, page: int = 1, per_page: int = 15) -> tuple[str, InlineKeyboardMarkup]:
+    total = len(members_list)
+    total_pages = math.ceil(total / per_page)
+    if total_pages == 0:
+        total_pages = 1
+    if page < 1:
+        page = 1
+    elif page > total_pages:
+        page = total_pages
+        
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_items = members_list[start_idx:end_idx]
+    
+    message = f"\U0001f465 *Daftar Member (Halaman {page}/{total_pages})*\n\n"
+    
+    keyboard = []
+    for uid, m in page_items:
+        uid_str = str(uid)
+        status_icon = "\U0001f7e2" if m.active else "\U0001f534"
+        uid_short = uid_str[:8] + ".." if len(uid_str) > 8 else uid_str
+        
+        row = [
+            InlineKeyboardButton(f"\U0001f464 {uid_short}", callback_data=f"v_mem:{uid_str}"),
+            InlineKeyboardButton("\U0001f441\ufe0f", callback_data=f"v_mem:{uid_str}"),
+            InlineKeyboardButton(status_icon, callback_data=f"t_mem:{uid_str}"),
+            InlineKeyboardButton("\U0001f5d1\ufe0f", callback_data=f"d_mem:{uid_str}"),
+        ]
+        keyboard.append(row)
+        
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("\u2b05\ufe0f Prev", callback_data=f"p_mem:{page-1}"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton("Next \u27a1\ufe0f", callback_data=f"p_mem:{page+1}"))
+        
+    if nav_row:
+        keyboard.append(nav_row)
+        
+    keyboard.append([InlineKeyboardButton("\u2b05\ufe0f Kembali", callback_data="admin_member")])
+    
+    return message, InlineKeyboardMarkup(keyboard)
+
+
 def get_model_management_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("\U0001f504 Toggle Model", callback_data="toggle_model_btn")],

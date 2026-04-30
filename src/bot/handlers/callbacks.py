@@ -19,6 +19,7 @@ from src.bot.menus.admin_ui import (
     get_manage_models_keyboard,
     get_manage_proxies_keyboard,
     get_member_dashboard,
+    get_member_list_keyboard,
     get_message_management_keyboard,
     get_model_management_keyboard,
     get_payment_page_keyboard,
@@ -1088,36 +1089,82 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if not members:
             await context.bot.send_message(chat_id=chat_id, text="Belum ada Member.")
             return
-        
-        lines = []
-        for i, (uid, m) in enumerate(members.items(), 1):
-            status = "🟢" if m.active else "🔴"
-            plan = m.plan.upper()
-            expire = m.expire_date[:10] if m.expire_date else "N/A"
-            lines.append(f"{i}. {status} `{uid}` - *{plan}* (Exp: {expire})")
-        
-        # Split message if too long
-        chunks = []
-        current_chunk = ""
-        for line in lines:
-            if len(current_chunk) + len(line) > 4000:
-                chunks.append(current_chunk)
-                current_chunk = line + "\n"
-            else:
-                current_chunk += line + "\n"
-        if current_chunk:
-            chunks.append(current_chunk)
+            
+        page = 1
+        members_list = list(members.items())  # List of tuples (uid, m)
+        msg, kb = get_member_list_keyboard(members_list, page=page)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown", reply_markup=kb)
+        return
 
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Kembali", callback_data="admin_member")]])
-        for idx, chunk in enumerate(chunks):
-            kb = back_kb if idx == len(chunks) - 1 else None
-            try:
-                if idx == 0:
-                    await query.edit_message_text(text=chunk, parse_mode="Markdown", reply_markup=kb)
-                else:
-                    await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
-            except Exception:
-                await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
+    if data.startswith("p_mem:"):
+        page = int(data.split(":")[1])
+        members = member_manager.get_all_members()
+        if not members:
+            return
+        members_list = list(members.items())
+        msg, kb = get_member_list_keyboard(members_list, page=page)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
+        return
+
+    if data.startswith("v_mem:"):
+        # View Member Details
+        uid = data.split(":")[1]
+        m = member_manager.get_all_members().get(uid)
+        if not m:
+            await context.bot.answer_callback_query(query.id, "Member tidak ditemukan")
+            return
+        
+        status = "🟢 ON" if m.active else "🔴 OFF"
+        msg = (
+            f"👤 *Detail Member*\n"
+            f"- User ID: `{uid}`\n"
+            f"- Plan: {m.plan.upper()}\n"
+            f"- Status: {status}\n"
+            f"- Kuota Testing: {m.testing_quota}\n"
+            f"- Expire: {m.expire_date}\n"
+        )
+        await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown")
+        await context.bot.answer_callback_query(query.id)
+        return
+
+    if data.startswith("t_mem:"):
+        # Toggle Member Status
+        uid = data.split(":")[1]
+        await member_manager.toggle_member(uid)
+        await context.bot.answer_callback_query(query.id, "Status member diubah")
+        
+        # Redraw
+        page_str = next((b.callback_data for row in query.message.reply_markup.inline_keyboard for b in row if b.callback_data and b.callback_data.startswith("p_mem:") and "Prev" in b.text), None)
+        page = int(page_str.split(":")[1]) + 1 if page_str else 1
+        members_list = list(member_manager.get_all_members().items())
+        msg, kb = get_member_list_keyboard(members_list, page=page)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
+        return
+
+    if data.startswith("d_mem:"):
+        # Delete member
+        uid = data.split(":")[1]
+        await member_manager.remove_member(uid)
+        await context.bot.answer_callback_query(query.id, f"Member {uid} dihapus")
+        
+        # Redraw
+        page_str = next((b.callback_data for row in query.message.reply_markup.inline_keyboard for b in row if b.callback_data and b.callback_data.startswith("p_mem:") and "Prev" in b.text), None)
+        page = int(page_str.split(":")[1]) + 1 if page_str else 1
+        members_list = list(member_manager.get_all_members().items())
+        msg, kb = get_member_list_keyboard(members_list, page=page)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
         return
 
     if data == "remove_member_btn":

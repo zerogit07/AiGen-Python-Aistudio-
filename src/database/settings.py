@@ -46,7 +46,7 @@ class LandingPageManager:
             return
         try:
             resp = (
-                supabase.table("settings")
+                await supabase.table("settings")
                 .select("data")
                 .eq("id", "landing")
                 .single()
@@ -62,7 +62,7 @@ class LandingPageManager:
         self._settings[key] = value
         if supabase:
             try:
-                supabase.table("settings").upsert(
+                await supabase.table("settings").upsert(
                     {"id": "landing", "data": self._settings}
                 ).execute()
             except Exception as exc:

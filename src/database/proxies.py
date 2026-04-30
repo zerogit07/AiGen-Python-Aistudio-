@@ -20,7 +20,7 @@ class ProxyManager:
         if not supabase:
             return
         try:
-            resp = supabase.table("proxies").select("*").execute()
+            resp = await supabase.table("proxies").select("*").execute()
             self._proxies = [
                 ProxyEntry(
                     proxy=item["proxy"],
@@ -39,7 +39,7 @@ class ProxyManager:
             self._proxies.append(new_proxy)
             if supabase:
                 try:
-                    supabase.table("proxies").upsert(
+                    await supabase.table("proxies").upsert(
                         {"proxy": proxy, "active": True, "cooldown_until": 0}
                     ).execute()
                 except Exception as exc:
@@ -49,7 +49,7 @@ class ProxyManager:
         self._proxies = [p for p in self._proxies if p.proxy != proxy]
         if supabase:
             try:
-                supabase.table("proxies").delete().eq("proxy", proxy).execute()
+                await supabase.table("proxies").delete().eq("proxy", proxy).execute()
             except Exception as exc:
                 logger.error("Error removing proxy: %s %s", proxy, exc)
 
@@ -59,7 +59,7 @@ class ProxyManager:
             entry.active = not entry.active
             if supabase:
                 try:
-                    supabase.table("proxies").update({"active": entry.active}).eq(
+                    await supabase.table("proxies").update({"active": entry.active}).eq(
                         "proxy", proxy
                     ).execute()
                 except Exception as exc:
@@ -73,7 +73,7 @@ class ProxyManager:
             p.cooldown_until = 0
         if supabase:
             try:
-                supabase.table("proxies").update(
+                await supabase.table("proxies").update(
                     {"active": True, "cooldown_until": 0}
                 ).neq("proxy", "").execute()
             except Exception:
@@ -84,7 +84,7 @@ class ProxyManager:
             p.active = False
         if supabase:
             try:
-                supabase.table("proxies").update({"active": False}).neq(
+                await supabase.table("proxies").update({"active": False}).neq(
                     "proxy", ""
                 ).execute()
             except Exception:
@@ -94,7 +94,7 @@ class ProxyManager:
         self._proxies = []
         if supabase:
             try:
-                supabase.table("proxies").delete().neq("proxy", "").execute()
+                await supabase.table("proxies").delete().neq("proxy", "").execute()
             except Exception:
                 pass
 
@@ -116,7 +116,7 @@ class ProxyManager:
                     dead_count += 1
                 if supabase:
                     try:
-                        supabase.table("proxies").update(
+                        await supabase.table("proxies").update(
                             {"active": p.active, "cooldown_until": p.cooldown_until}
                         ).eq("proxy", p.proxy).execute()
                     except Exception:
@@ -172,7 +172,7 @@ class ProxyManager:
             logger.info("[Cooldown Proxy] set for 15 mins")
             if supabase:
                 try:
-                    supabase.table("proxies").update(
+                    await supabase.table("proxies").update(
                         {"cooldown_until": entry.cooldown_until}
                     ).eq("proxy", entry.proxy).execute()
                 except Exception:

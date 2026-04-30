@@ -20,7 +20,7 @@ class MemberManager:
         if not supabase:
             return
         try:
-            resp = supabase.table("members").select("*").execute()
+            resp = await supabase.table("members").select("*").execute()
             for row in resp.data or []:
                 id_str = str(row["user_id"])
                 self._members[id_str] = MemberData(
@@ -39,7 +39,7 @@ class MemberManager:
             return
         try:
             resp = (
-                supabase.table("settings")
+                await supabase.table("settings")
                 .select("id, data")
                 .eq("id", "custom_limits")
                 .execute()
@@ -65,7 +65,7 @@ class MemberManager:
         if supabase:
             try:
                 resp = (
-                    supabase.table("members")
+                    await supabase.table("members")
                     .select("*")
                     .eq("user_id", id_str)
                     .single()
@@ -89,7 +89,7 @@ class MemberManager:
         if supabase:
             try:
                 resp = (
-                    supabase.table("jobs")
+                    await supabase.table("jobs")
                     .select("*", count="exact")
                     .eq("user_id", str(user_id))
                     .eq("status", "processing")
@@ -159,7 +159,7 @@ class MemberManager:
         self._in_progress_count[id_str] = 0
         if supabase:
             try:
-                supabase.table("members").update({"current_process": 0}).eq(
+                await supabase.table("members").update({"current_process": 0}).eq(
                     "user_id", id_str
                 ).execute()
             except Exception:
@@ -174,7 +174,7 @@ class MemberManager:
         self._in_progress_count[id_str] = current + 1
         if supabase:
             try:
-                supabase.table("members").update(
+                await supabase.table("members").update(
                     {"current_process": current + 1}
                 ).eq("user_id", id_str).execute()
             except Exception:
@@ -187,7 +187,7 @@ class MemberManager:
         self._in_progress_count[id_str] = max(0, current - 1)
         if supabase:
             try:
-                supabase.table("members").update(
+                await supabase.table("members").update(
                     {"current_process": max(0, current - 1)}
                 ).eq("user_id", id_str).execute()
             except Exception:
@@ -215,7 +215,7 @@ class MemberManager:
         self._members[id_str] = member
         if supabase:
             try:
-                supabase.table("members").upsert(
+                await supabase.table("members").upsert(
                     {
                         "user_id": id_str,
                         "plan": plan,
@@ -233,7 +233,7 @@ class MemberManager:
         self._members.pop(id_str, None)
         if supabase:
             try:
-                supabase.table("members").delete().eq("user_id", id_str).execute()
+                await supabase.table("members").delete().eq("user_id", id_str).execute()
             except Exception:
                 pass
 

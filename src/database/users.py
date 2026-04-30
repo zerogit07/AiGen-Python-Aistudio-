@@ -16,7 +16,7 @@ class UserManager:
         if not supabase:
             return
         try:
-            resp = supabase.table("users").select("id").execute()
+            resp = await supabase.table("users").select("id").execute()
             for row in resp.data or []:
                 if row.get("id"):
                     self._users.add(str(row["id"]))
@@ -37,7 +37,7 @@ class UserManager:
             self._users.add(id_str)
             if supabase:
                 try:
-                    supabase.table("users").upsert(
+                    await supabase.table("users").upsert(
                         {
                             "id": int(id_str),
                             "username": username or "",
@@ -56,7 +56,7 @@ class UserManager:
             return None
         try:
             resp = (
-                supabase.table("users")
+                await supabase.table("users")
                 .select("*")
                 .eq("id", int(str(user_id)))
                 .single()

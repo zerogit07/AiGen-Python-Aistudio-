@@ -137,7 +137,7 @@ async def finalize_job(
 
         if supabase:
             try:
-                supabase.table("jobs").insert(
+                await supabase.table("jobs").insert(
                     {
                         "job_id": str(job_id),
                         "user_id": str(user_id),

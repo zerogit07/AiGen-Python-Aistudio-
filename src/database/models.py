@@ -26,7 +26,7 @@ class ModelManager:
             # Load maintenance mode
             try:
                 resp = (
-                    supabase.table("settings")
+                    await supabase.table("settings")
                     .select("id, data")
                     .eq("id", "maintenance")
                     .execute()
@@ -36,7 +36,7 @@ class ModelManager:
             except Exception:
                 pass
 
-            resp = supabase.table("models_status").select("*").execute()
+            resp = await supabase.table("models_status").select("*").execute()
             self._status = [
                 ModelStatus(model_id=item["id"], active=item.get("active", True))
                 for item in (resp.data or [])
@@ -48,7 +48,7 @@ class ModelManager:
                     new_status = ModelStatus(model_id=dm["id"], active=True)
                     self._status.append(new_status)
                     try:
-                        supabase.table("models_status").upsert(
+                        await supabase.table("models_status").upsert(
                             {"id": dm["id"], "active": True}
                         ).execute()
                     except Exception:
@@ -78,7 +78,7 @@ class ModelManager:
             entry.active = not entry.active
             if supabase:
                 try:
-                    supabase.table("models_status").update(
+                    await supabase.table("models_status").update(
                         {"active": entry.active}
                     ).eq("id", entry.id).execute()
                 except Exception as exc:
@@ -90,7 +90,7 @@ class ModelManager:
         self._maintenance_mode = not self._maintenance_mode
         if supabase:
             try:
-                supabase.table("settings").upsert(
+                await supabase.table("settings").upsert(
                     {"id": "maintenance", "data": {"active": self._maintenance_mode}}
                 ).execute()
             except Exception as exc:

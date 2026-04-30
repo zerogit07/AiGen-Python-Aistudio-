@@ -21,7 +21,7 @@ class ApiKeyManager:
         if not supabase:
             return
         try:
-            resp = supabase.table("api_keys").select("*").execute()
+            resp = await supabase.table("api_keys").select("*").execute()
             self._keys = [
                 ApiKey(
                     key=item["key"],
@@ -73,7 +73,7 @@ class ApiKeyManager:
             logger.info("[Cooldown] Key %s... set for %ds", key[:8], duration // 1000)
             if supabase:
                 try:
-                    supabase.table("api_keys").update(
+                    await supabase.table("api_keys").update(
                         {"cooldown_until": ak.cooldown_until}
                     ).eq("key", key).execute()
                 except Exception:
@@ -85,7 +85,7 @@ class ApiKeyManager:
             ak.active = False
             if supabase:
                 try:
-                    supabase.table("api_keys").update({"active": False}).eq(
+                    await supabase.table("api_keys").update({"active": False}).eq(
                         "key", key
                     ).execute()
                 except Exception as exc:
@@ -97,7 +97,7 @@ class ApiKeyManager:
             self._keys.append(new_key)
             if supabase:
                 try:
-                    supabase.table("api_keys").upsert(
+                    await supabase.table("api_keys").upsert(
                         {"key": key, "active": True, "cooldown_until": 0}
                     ).execute()
                 except Exception as exc:
@@ -107,7 +107,7 @@ class ApiKeyManager:
         self._keys = [ak for ak in self._keys if ak.key != key]
         if supabase:
             try:
-                supabase.table("api_keys").delete().eq("key", key).execute()
+                await supabase.table("api_keys").delete().eq("key", key).execute()
             except Exception as exc:
                 logger.error("Error removing key from Supabase: %s %s", key, exc)
 
@@ -117,7 +117,7 @@ class ApiKeyManager:
             ak.active = not ak.active
             if supabase:
                 try:
-                    supabase.table("api_keys").update({"active": ak.active}).eq(
+                    await supabase.table("api_keys").update({"active": ak.active}).eq(
                         "key", key
                     ).execute()
                 except Exception as exc:
@@ -131,7 +131,7 @@ class ApiKeyManager:
             k.cooldown_until = 0
         if supabase:
             try:
-                supabase.table("api_keys").update(
+                await supabase.table("api_keys").update(
                     {"active": True, "cooldown_until": 0}
                 ).neq("key", "").execute()
             except Exception as exc:
@@ -142,7 +142,7 @@ class ApiKeyManager:
             k.active = False
         if supabase:
             try:
-                supabase.table("api_keys").update({"active": False}).neq("key", "").execute()
+                await supabase.table("api_keys").update({"active": False}).neq("key", "").execute()
             except Exception as exc:
                 logger.error("Error disabling all keys: %s", exc)
 
@@ -150,7 +150,7 @@ class ApiKeyManager:
         self._keys = []
         if supabase:
             try:
-                supabase.table("api_keys").delete().neq("key", "").execute()
+                await supabase.table("api_keys").delete().neq("key", "").execute()
             except Exception as exc:
                 logger.error("Error deleting all keys: %s", exc)
 
@@ -177,7 +177,7 @@ class ApiKeyManager:
                             k.cooldown_until = 0
                             if supabase:
                                 try:
-                                    supabase.table("api_keys").update(
+                                    await supabase.table("api_keys").update(
                                         {"active": True, "cooldown_until": 0}
                                     ).eq("key", k.key).execute()
                                 except Exception:
@@ -189,7 +189,7 @@ class ApiKeyManager:
                             k.cooldown_until = 0
                             if supabase:
                                 try:
-                                    supabase.table("api_keys").update(
+                                    await supabase.table("api_keys").update(
                                         {"active": True, "cooldown_until": 0}
                                     ).eq("key", k.key).execute()
                                 except Exception:

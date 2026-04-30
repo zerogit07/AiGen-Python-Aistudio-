@@ -38,7 +38,7 @@ class UsageManager:
         if not supabase:
             return
         try:
-            resp = supabase.table("usage").select("*").execute()
+            resp = await supabase.table("usage").select("*").execute()
             for item in resp.data or []:
                 self._usage[str(item["user_id"])] = UsageData(
                     video_today=item.get("video_today", 0),
@@ -66,7 +66,7 @@ class UsageManager:
             self._usage[id_str] = data
             if supabase:
                 try:
-                    supabase.table("usage").upsert(
+                    await supabase.table("usage").upsert(
                         {"user_id": user_id, **data.to_dict()}
                     ).execute()
                 except Exception as exc:
@@ -83,7 +83,7 @@ class UsageManager:
                 changed = True
             if changed and supabase:
                 try:
-                    supabase.table("usage").upsert(
+                    await supabase.table("usage").upsert(
                         {"user_id": user_id, **data.to_dict()}
                     ).execute()
                 except Exception as exc:
@@ -96,7 +96,7 @@ class UsageManager:
         data.video_month += 1
         if supabase:
             try:
-                supabase.table("usage").upsert(
+                await supabase.table("usage").upsert(
                     {"user_id": user_id, **data.to_dict()}
                 ).execute()
             except Exception as exc:

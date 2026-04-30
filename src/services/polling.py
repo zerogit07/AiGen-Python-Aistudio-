@@ -92,7 +92,7 @@ async def watch_generation(
                 await member_manager.end_process(user_id)
                 if supabase:
                     try:
-                        supabase.table("jobs").update({"status": "completed"}).eq(
+                        await supabase.table("jobs").update({"status": "completed"}).eq(
                             "job_id", job_id
                         ).execute()
                     except Exception:
@@ -139,7 +139,7 @@ async def watch_generation(
                 await member_manager.end_process(user_id)
                 if supabase:
                     try:
-                        supabase.table("jobs").update({"status": "failed"}).eq(
+                        await supabase.table("jobs").update({"status": "failed"}).eq(
                             "job_id", job_id
                         ).execute()
                     except Exception:
@@ -171,7 +171,7 @@ async def watch_generation(
     await member_manager.end_process(user_id)
     if supabase:
         try:
-            supabase.table("jobs").update({"status": "failed"}).eq(
+            await supabase.table("jobs").update({"status": "failed"}).eq(
                 "job_id", job_id
             ).execute()
         except Exception:

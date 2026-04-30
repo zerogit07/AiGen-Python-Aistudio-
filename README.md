@@ -247,11 +247,12 @@ AiGen Studio Bot dirancang dengan arsitektur terdistribusi (UI Terpisah dari Pem
 - Pemproses _background_ terpisah (`arq worker.WorkerSettings`) yang mengeksekusi pekerjaan berat sekuensial atau delay tinggi.
 - Mengatur konkurensi aman (**Limit 5 Job Paralel**) per instance agar eksekusi proxy tidak seperti serangan *DDoS* dari satu node. Jeda acak antar tugas `random.uniform(1, 5)` membuat laju eksekusi tetap humanis dan aman bagi target server.
 
-### 4. Smart Triple Pool & Wajib Proxy (`src/core/triple_pool.py`)
+### 4. Smart Triple Pool & Real-time Proxy API Rotation (`src/core/triple_pool.py`)
 - Komponen anti-blokir _Zero-Trust_ yang mengamankan proxy ban/rate limits. 
 - **Mode Wajib Proxy**: Mulai versi terbaru, sistem tidak akan berjalan (*crash-fail-safe*) jika tidak ada minimal 1 proxy tersetting aktif di menu admin. Proxy adalah identitas sakral.
+- **Round-Robin & Real-time Rotation**: Mendukung rotasi lewat _API Link_ (seperti 711proxy yang memiliki endpoint `/change?key=...`). Triple Pool menyimpan URL rotasi tersebut dan baru akan mengambil IP Aktual tepat ketika worker meminjamnya (`acquire()`). Hal ini menjamin Worker selalu mendapatkan IP paling segar yang baru ditarik dari server proxy!
 - Secara cerdas membentuk kumpulan sesi independen (disebut `TripleSet`) yang berisi:
-  **1 API Key Teruji** + **1 Proxy Spesifik** + **1 Browser Fingerprint/User Agent Unik**.
+  **1 API Key Teruji** + **1 Proxy Sehat/Baru diputar** + **1 Browser Fingerprint/User Agent Unik**.
 - **Lock & Burn System**: Sebuah `TripleSet` dipinjam oleh satu job Worker dan dikunci (locked). Jika Worker menemukan koneksi mati, blokir IP, atau Rate Limit, worker memanggil flag `mark_burned(triple_set)`, memicu Triple Pool membuang proxy itu/memberikan jeda cooldown otomatis agar key tak digunakan berulang kali sampai hancur kredibilitasnya. Tiap Worker Job dipastikan memakai TripleSet yang saling berbeda (selama stoknya di pool memenuhi).
 
 ### 5. Resilient Request Engine (`src/services/request_engine.py`)

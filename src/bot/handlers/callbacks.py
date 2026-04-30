@@ -901,10 +901,28 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         for i, k in enumerate(keys, 1):
             status = "ON" if k.active and k.cooldown_until < now else ("CD" if k.active else "OFF")
             lines.append(f"{i}. `{k.key[:12]}...` [{status}]")
-        try:
-            await query.edit_message_text(text="\n".join(lines), parse_mode="Markdown", reply_markup=back_kb)
-        except Exception:
-            await context.bot.send_message(chat_id=chat_id, text="\n".join(lines), parse_mode="Markdown", reply_markup=back_kb)
+        
+        # Split message if too long
+        chunks = []
+        current_chunk = ""
+        for line in lines:
+            if len(current_chunk) + len(line) > 4000:
+                chunks.append(current_chunk)
+                current_chunk = line + "\n"
+            else:
+                current_chunk += line + "\n"
+        if current_chunk:
+            chunks.append(current_chunk)
+            
+        for idx, chunk in enumerate(chunks):
+            kb = back_kb if idx == len(chunks) - 1 else None
+            try:
+                if idx == 0:
+                    await query.edit_message_text(text=chunk, parse_mode="Markdown", reply_markup=kb)
+                else:
+                    await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
+            except Exception:
+                await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
         return
 
     # Proxy Management
@@ -941,14 +959,31 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         lines = []
         for i, p in enumerate(proxies, 1):
             status = "🟢" if p.active else "🔴"
-            masked = f"{p.url[:15]}...{p.url[-10:]}" if len(p.url) > 25 else p.url
+            masked = f"{p.proxy[:15]}...{p.proxy[-10:]}" if len(p.proxy) > 25 else p.proxy
             lines.append(f"{i}. {status} `{masked}`")
         
+        # Split message if too long
+        chunks = []
+        current_chunk = ""
+        for line in lines:
+            if len(current_chunk) + len(line) > 4000:
+                chunks.append(current_chunk)
+                current_chunk = line + "\n"
+            else:
+                current_chunk += line + "\n"
+        if current_chunk:
+            chunks.append(current_chunk)
+
         back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Kembali", callback_data="admin_proxy")]])
-        try:
-            await query.edit_message_text(text="\n".join(lines), parse_mode="Markdown", reply_markup=back_kb)
-        except Exception:
-            await context.bot.send_message(chat_id=chat_id, text="\n".join(lines), parse_mode="Markdown", reply_markup=back_kb)
+        for idx, chunk in enumerate(chunks):
+            kb = back_kb if idx == len(chunks) - 1 else None
+            try:
+                if idx == 0:
+                    await query.edit_message_text(text=chunk, parse_mode="Markdown", reply_markup=kb)
+                else:
+                    await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
+            except Exception:
+                await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
         return
 
     if data == "manage_proxies":

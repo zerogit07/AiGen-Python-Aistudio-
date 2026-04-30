@@ -605,12 +605,33 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         ])
 
         try:
-            await query.edit_message_media(
-                media={"type": "photo", "media": payment_image, "caption": message, "parse_mode": "Markdown"},
+            await query.message.delete()
+        except Exception:
+            pass
+
+        if not payment_image:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=message,
+                parse_mode="Markdown",
                 reply_markup=keyboard,
             )
-        except Exception:
-            await context.bot.send_photo(chat_id=chat_id, photo=payment_image, caption=message, parse_mode="Markdown", reply_markup=keyboard)
+        else:
+            try:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=payment_image,
+                    caption=message,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard,
+                )
+            except Exception:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=message,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard,
+                )
         return
 
     if data == "back_to_banner":
@@ -656,13 +677,30 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.message.delete()
         except Exception:
             pass
-        await context.bot.send_photo(
-            chat_id=chat_id,
-            photo=banner_url,
-            caption=description,
-            parse_mode="Markdown",
-            reply_markup=keyboard,
-        )
+
+        if not banner_url:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=description,
+                parse_mode="Markdown",
+                reply_markup=keyboard,
+            )
+        else:
+            try:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=banner_url,
+                    caption=description,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard,
+                )
+            except Exception:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=description,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard,
+                )
         return
 
     if data == "back_main":

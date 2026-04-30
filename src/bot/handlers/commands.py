@@ -68,13 +68,29 @@ async def handle_start_command(
             except Exception:
                 pass
 
-        await context.bot.send_photo(
-            chat_id=update.effective_chat.id,
-            photo=banner_url,
-            caption=description,
-            parse_mode="Markdown",
-            reply_markup=keyboard,
-        )
+        if not banner_url:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=description,
+                parse_mode="Markdown",
+                reply_markup=keyboard,
+            )
+        else:
+            try:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=banner_url,
+                    caption=description,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard,
+                )
+            except Exception:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=description,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard,
+                )
         return
 
     # User has active membership

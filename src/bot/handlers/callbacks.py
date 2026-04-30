@@ -48,9 +48,9 @@ from src.database.proxies import proxy_manager
 from src.database.settings import landing_page_manager
 from src.database.usage import usage_manager
 from src.database.users import user_manager
-from src.core.queue import add_job, add_check_keys_job
+from src.core.queue import add_job, add_check_single_key_job
 
-admin_check_keys_cooldown = {}
+_last_key_check = {}
 from src.services.polling import mark_buttons_used
 from src.services.stats import global_logs, global_stats
 
@@ -706,17 +706,45 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if data == "test_keys_btn":
+        if not is_user_admin(user_id, state):
+            return
+            
         now = time.time()
-        if user_id in admin_check_keys_cooldown and now - admin_check_keys_cooldown[user_id] < 60:
-            await context.bot.send_message(chat_id=chat_id, text="⏳ Harap tunggu 60 detik sebelum melakukan cek key lagi.")
+        if user_id in _last_key_check and now - _last_key_check[user_id] < 120:
+            await context.bot.send_message(chat_id=chat_id, text="⏳ Harap tunggu 120 detik sebelum melakukan cek key lagi.")
             return
         
-        admin_check_keys_cooldown[user_id] = now
-        try:
-            job_id = await add_check_keys_job(user_id, chat_id)
-            await context.bot.send_message(chat_id=chat_id, text=f"⏳ Permintaan cek API key masuk antrian. ID job: #{job_id}")
-        except Exception as e:
-            await context.bot.send_message(chat_id=chat_id, text=f"❌ Gagal memasukkan ke antrian: {e}")
+        _last_key_check[user_id] = now
+        
+        keys = api_key_manager.get_all_keys()
+        if not keys:
+            await context.bot.send_message(chat_id=chat_id, text="❌ Tidak ada API key untuk diuji.")
+            return
+
+        batch_id = f"batch_keys_{user_id}_{int(time.time())}"
+        from src.core.queue import init_key_check_batch, _get_redis_pool
+        await init_key_check_batch(batch_id, len(keys))
+            
+        count = 0
+        for i, k in enumerate(keys, 1):
+            key_label = f"Key #{i}"
+            try:
+                await add_check_single_key_job(admin_id=user_id, chat_id=chat_id, api_key=k.key, key_label=key_label, batch_id=batch_id)
+                count += 1
+            except Exception as e:
+                logger.error("Gagal enqueue %s: %s", key_label, e)
+                # Ensure the total count is still met by pushing a failure directly
+                try:
+                    redis = await _get_redis_pool()
+                    if len(k.key) >= 8:
+                        masked = f"{k.key[:4]}****{k.key[-4:]}"
+                    else:
+                        masked = "****"
+                    await redis.rpush(f"check_batch_results:{batch_id}", f"🔑 {key_label} (`{masked}`): ❌ Failed (Enqueue Error)")
+                except Exception:
+                    pass
+                
+        await context.bot.send_message(chat_id=chat_id, text=f"⏳ {count} permintaan cek API key masuk antrian. Hasil akan direkap dalam satu laporan setelah semua selesai.")
         return
 
     if data == "enable_all_keys":

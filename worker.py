@@ -86,86 +86,95 @@ async def shutdown(ctx: dict) -> None:
         await bot.shutdown()
 
 
-async def process_check_keys(ctx: dict, admin_id: int, chat_id: int) -> None:
+async def process_check_single_key(ctx: dict, admin_id: int, chat_id: int, api_key: str, key_label: str, batch_id: str) -> None:
     await asyncio.sleep(random.uniform(1, 5))
     
     bot: Bot = ctx["bot"]
     triple_pool: TriplePool = ctx["triple_pool"]
+    redis = ctx["redis"]
     
     triple_set = await triple_pool.acquire()
+    status_str = "❌ Error Unknown"
     try:
-        keys = api_key_manager.get_all_keys()
-        if not keys:
-            await bot.send_message(chat_id=chat_id, text="❌ Tidak ada API key untuk diuji.")
-            return
-
-        valid = 0
-        limit = 0
-        invalid = 0
-        total = len(keys)
-        results = []
-
         headers = dict(triple_set.fingerprint)
+        headers["x-freepik-api-key"] = api_key
         proxy = triple_set.proxy or None
 
         import httpx
-        async with httpx.AsyncClient(timeout=5, proxy=proxy) as client:
-            for k in keys:
-                req_headers = dict(headers)
-                req_headers["x-freepik-api-key"] = k.key
-                
-                try:
-                    resp = await client.head("https://api.freepik.com/v1/resource", headers=req_headers)
-                    if resp.status_code == 403:
-                        await triple_pool.mark_burned(triple_set)
-                        raise Exception("403 Forbidden - Proxy blocked")
-                    elif resp.status_code == 429:
-                        limit += 1
-                        results.append((k.key, "🟡 Rate Limited"))
-                    elif resp.status_code in (200, 404, 400, 405):
-                        valid += 1
-                        results.append((k.key, "🟢 Valid"))
-                    else:
-                        invalid += 1
-                        results.append((k.key, "🔴 Invalid"))
-                        
-                except httpx.RequestError as exc:
+        async with httpx.AsyncClient(timeout=10, proxy=proxy) as client:
+            try:
+                resp = await client.head("https://api.freepik.com/v1/resource", headers=headers)
+                if resp.status_code == 403:
                     await triple_pool.mark_burned(triple_set)
-                    raise Exception(f"Proxy request error: {exc}")
-        
-        msg_lines = [f"🔑 *Hasil Test Key (Total {total}):*"]
-        msg_lines.append(f"- Valid: 🟢 {valid}")
-        msg_lines.append(f"- Limit: 🟡 {limit}")
-        msg_lines.append(f"- Invalid: 🔴 {invalid}\n")
-        
-        for key_str, status in results:
-            if len(key_str) >= 8:
-                masked = f"{key_str[:4]}****{key_str[-4:]}"
-            else:
-                masked = "****"
-            msg_lines.append(f"`{masked}` : {status}")
-        
-        # Split message if it's too long
-        full_text = "\n".join(msg_lines)
-        if len(full_text) > 4000:
-            for i in range(0, len(full_text), 4000):
-                chunk = full_text[i:i+4000]
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=chunk,
-                    parse_mode="Markdown"
-                )
+                    status_str = "❌ 403 Forbidden"
+                elif resp.status_code == 429:
+                    await triple_pool.mark_burned(triple_set)
+                    status_str = "🔒 Rate Limited (429)"
+                elif resp.status_code in (200, 404, 400, 405):
+                    status_str = "✅ Valid"
+                elif resp.status_code == 401:
+                    status_str = "❌ Invalid (401)"
+                else:
+                    status_str = f"❌ Status {resp.status_code}"
+                    
+            except httpx.RequestError as exc:
+                await triple_pool.mark_burned(triple_set)
+                status_str = f"❌ Failed (Proxy/Network Error)"
+
+    except Exception as e:
+        logger.error("Error checking key %s: %s", key_label, e)
+        status_str = f"❌ Failed (Crash)"
+    finally:
+        if "triple_pool" in locals() and "triple_set" in locals():
+            await triple_pool.release(triple_set)
+            
+        if len(api_key) >= 8:
+            masked_key = f"{api_key[:4]}****{api_key[-4:]}"
         else:
-            await bot.send_message(
-                chat_id=chat_id,
-                text=full_text,
-                parse_mode="Markdown"
-            )
-    except Exception:
-        await triple_pool.release(triple_set)
-        raise
-    else:
-        await triple_pool.release(triple_set)
+            masked_key = "****"
+
+        result_str = f"🔑 {key_label} (`{masked_key}`): {status_str}"
+
+        try:
+            await redis.rpush(f"check_batch_results:{batch_id}", result_str)
+            current_count = await redis.llen(f"check_batch_results:{batch_id}")
+            expected_count_bytes = await redis.get(f"check_batch_total:{batch_id}")
+            
+            if expected_count_bytes and current_count == int(expected_count_bytes):
+                results = await redis.lrange(f"check_batch_results:{batch_id}", 0, -1)
+                results_decoded = [res.decode("utf-8") if isinstance(res, bytes) else str(res) for res in results]
+                
+                def sort_key(text):
+                    try:
+                        return int(text.split("#")[1].split()[0])
+                    except Exception:
+                        return 0
+                results_decoded.sort(key=sort_key)
+
+                valid_count = sum(1 for r in results_decoded if "✅ Valid" in r)
+                limit_count = sum(1 for r in results_decoded if "🔒 Rate Limited (429)" in r)
+                invalid_count = len(results_decoded) - valid_count - limit_count
+
+                summary = (
+                    f"📊 *Laporan Pengecekan API Key (Selesai)*\n\n"
+                    f"- Valid: 🟢 {valid_count}\n"
+                    f"- Limit: 🟡 {limit_count}\n"
+                    f"- Invalid/Gagal: 🔴 {invalid_count}\n"
+                    f"- Total: {len(results_decoded)}\n\n"
+                )
+                full_text = summary + "\n".join(results_decoded)
+                
+                if len(full_text) > 4000:
+                    for i in range(0, len(full_text), 4000):
+                        chunk = full_text[i:i+4000]
+                        await bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown")
+                else:
+                    await bot.send_message(chat_id=chat_id, text=full_text, parse_mode="Markdown")
+                
+                await redis.delete(f"check_batch_results:{batch_id}")
+                await redis.delete(f"check_batch_total:{batch_id}")
+        except Exception as report_exc:
+            logger.error("Gagal mengirim laporan check keys: %s", report_exc)
 
 
 async def process_generation(
@@ -229,7 +238,7 @@ async def process_generation(
 
 
 class WorkerSettings:
-    functions = [process_generation, process_check_keys]
+    functions = [process_generation, process_check_single_key]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(REDIS_URL)

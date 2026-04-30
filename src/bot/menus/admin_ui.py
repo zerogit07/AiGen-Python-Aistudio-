@@ -140,17 +140,28 @@ def get_manage_proxies_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_member_dashboard(members: dict, member_count: int, trial_count: int) -> tuple[str, InlineKeyboardMarkup]:
+    lite_count = sum(1 for m in members.values() if m.plan.lower() == "lite")
+    pro_count = sum(1 for m in members.values() if m.plan.lower() == "pro")
+    ultra_count = sum(1 for m in members.values() if m.plan.lower() == "ultra")
+    
     message = (
         "\U0001f465 *Manajemen Member*\n\n"
         "\U0001f4ca *Statistik:*\n"
-        f"- Total Member: {member_count}\n"
-        f"- Trial: {trial_count}\n\n"
+        f"- Lite: {lite_count}\n"
+        f"- Pro: {pro_count}\n"
+        f"- Ultra: {ultra_count}\n"
+        f"- Trial: {trial_count}\n"
+        f"- Total: {member_count}\n\n"
         "Pilih menu di bawah:"
     )
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("\u2795 Tambah Member", callback_data="add_member_btn")],
-        [InlineKeyboardButton("\U0001f4cb Lihat Member", callback_data="list_member_btn")],
-        [InlineKeyboardButton("\U0001f5d1 Hapus Member", callback_data="remove_member_btn")],
+        [
+            InlineKeyboardButton("\u2795 Tambah Member", callback_data="add_member_btn"),
+            InlineKeyboardButton("\U0001f4cb Lihat Member", callback_data="list_member_btn"),
+        ],
+        [
+            InlineKeyboardButton("\U0001f5d1 Hapus Member", callback_data="remove_member_btn"),
+        ],
         [InlineKeyboardButton("\u2b05\ufe0f Kembali", callback_data="admin_panel_back")],
     ])
     return message, keyboard

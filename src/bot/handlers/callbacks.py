@@ -722,8 +722,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
 
         batch_id = f"batch_keys_{user_id}_{int(time.time())}"
-        from src.core.queue import init_key_check_batch, _get_redis_pool
+        from src.core.queue import init_key_check_batch, _get_redis_pool, add_check_batch_timeout_job
         await init_key_check_batch(batch_id, len(keys))
+        await add_check_batch_timeout_job(batch_id, chat_id)
             
         count = 0
         for i, k in enumerate(keys, 1):

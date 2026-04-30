@@ -36,7 +36,9 @@ class TriplePool:
             return
 
         if not active_proxies:
-            active_proxies = [""]
+            self._triples = []
+            logger.error("TriplePool: Tidak ada proxy aktif. Mode Wajib Proxy memblokir proses.")
+            return
 
         previous_state = {
             (triple.api_key, triple.proxy): {
@@ -84,7 +86,10 @@ class TriplePool:
                     self._refresh_locked()
 
                 if not self._triples:
-                    raise RuntimeError("TriplePool kosong: API key tidak tersedia")
+                    active_keys = [item.key for item in api_key_manager.get_all_keys() if item.active]
+                    if not active_keys:
+                        raise RuntimeError("TriplePool kosong: API key tidak tersedia")
+                    raise RuntimeError("TriplePool kosong: Proxy tidak tersedia (Fitur generate diwajibkan menggunakan proxy)")
 
                 now = time.time()
                 total = len(self._triples)

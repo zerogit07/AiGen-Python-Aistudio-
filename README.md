@@ -234,33 +234,43 @@ AiGen Studio Bot dirancang dengan arsitektur terdistribusi (UI Terpisah dari Pem
 
 ### 1. Telegram Bot Client (`server.py`)
 - Bertugas murni sebagai antarmuka Telegram (menangani pesan, _inline buttons_, navigasi panel).
-- Melakukan validasi input pengguna dan mengecek batasan limit paket langganan.
-- Tidak melakukan panggilan API Generate yang berat secara langsung. Sebaliknya, bot akan membungkus parameter request dan mengirimkannya ( _enqueue_ ) ke antrian **Redis**.
+- Melakukan validasi awal: kelayakan akun (pakah free trial, lite, pro, ultra), serta batasan antrean harian dan serentak (*concurrency*).
+- Menyimpan State sementara (Gambar Referensi, Parameter Multi-shot) ke state internal per user.
+- **Tidak mengeksekusi HTTP request Freepik**. Sebaliknya, hanya membungkus _intent_ user ke sebuah struktur job, lalu melempar ke Redis (via `ARQ`).
 
-### 2. Job Queue (Redis & ARQ)
-- Menyimpan antrian tugas-tugas ( _jobs_ ) yang diberikan oleh Bot.
-- `src/core/queue.py` berfungsi sebagai jembatan agar Telegram client dapat melempar tugas ( _Generate video/image_, _Cek API Key_) ke Worker dengan aman.
+### 2. Job Queue & Scatter-Gather (Redis + ARQ)
+- Jembatan komunikasi asinkron antara Bot dan barisan Worker.
+- **Generate API**: Job masuk, Worker mengambil job satu-persatu secara teratur, memproses rendering dengan HTTP polling berdurasi lama, tanpa menghalangi (blocking) interface bot.
+- **Check API Key (Scatter-Gather Strategy)**: Apabila admin memencet tombol "Cek Semua Key", bot akan membuat N job terpisah ke queue (satu per key) dan MENGHUBUNGKAN semuanya dengan `batch_id`. Worker mengeksekusi pengecekan per-key lalu menggunakan kunci atomic Redis (seperti `INCR` pada `HLEN`) untuk mencegah "race condition". Saat semua selesai (atau di-_fallback_ oleh job timeout selama 10 menit), Redis menyatukan seluruh laporan dalam 1 pesan ke Admin.
 
-### 3. Background Worker (`worker.py`)
-- Proses terpisah (`arq worker.WorkerSettings`) yang mengambil pekerjaan dari antrian Redis.
-- Menangani semua eksekusi koneksi ke API pihak ketiga (Freepik) dan tidak akan membuat Telegram Bot ikut hang / melambat ( _blocking_ ).
+### 3. Background Worker Process (`worker.py`)
+- Pemproses _background_ terpisah (`arq worker.WorkerSettings`) yang mengeksekusi pekerjaan berat sekuensial atau delay tinggi.
+- Mengatur konkurensi aman (**Limit 5 Job Paralel**) per instance agar eksekusi proxy tidak seperti serangan *DDoS* dari satu node. Jeda acak antar tugas `random.uniform(1, 5)` membuat laju eksekusi tetap humanis dan aman bagi target server.
 
-### 4. Smart Triple Pool (`src/core/triple_pool.py`)
-Komponen keamanan tingkat tinggi untuk menghindari _Rate Limit_ (429) dan _IP Ban_ (403/401):
-- Secara dinamis mengikat dan merotasi **1 API Key** + **1 Proxy** + **1 Browser Fingerprint** ke dalam sebuah **TripleSet**.
-- Mengunci sebuah TripleSet agar tidak ditabrak oleh tugas paralel lain di Worker.
-- Menerapkan _cooldown_ dan status _Burned_ otomatis jika sebuah koneksi Proxy atau Key dicurigai tertangkap radar blokir oleh target server.
+### 4. Smart Triple Pool & Wajib Proxy (`src/core/triple_pool.py`)
+- Komponen anti-blokir _Zero-Trust_ yang mengamankan proxy ban/rate limits. 
+- **Mode Wajib Proxy**: Mulai versi terbaru, sistem tidak akan berjalan (*crash-fail-safe*) jika tidak ada minimal 1 proxy tersetting aktif di menu admin. Proxy adalah identitas sakral.
+- Secara cerdas membentuk kumpulan sesi independen (disebut `TripleSet`) yang berisi:
+  **1 API Key Teruji** + **1 Proxy Spesifik** + **1 Browser Fingerprint/User Agent Unik**.
+- **Lock & Burn System**: Sebuah `TripleSet` dipinjam oleh satu job Worker dan dikunci (locked). Jika Worker menemukan koneksi mati, blokir IP, atau Rate Limit, worker memanggil flag `mark_burned(triple_set)`, memicu Triple Pool membuang proxy itu/memberikan jeda cooldown otomatis agar key tak digunakan berulang kali sampai hancur kredibilitasnya. Tiap Worker Job dipastikan memakai TripleSet yang saling berbeda (selama stoknya di pool memenuhi).
 
 ### 5. Resilient Request Engine (`src/services/request_engine.py`)
-- Klien HTTP cerdas yang memfasilitasi rotasi dan _auto-retry_ di pertengahan jalan.
-- Jika sebuah request gagal di tengah proses karena limit, engine akan mencari proxy/key baru dari _Triple Pool_ dan mengulang kembali sisa request.
-- Menyinkronisasi otomatis status mati (401) dan limit (429) API ke database agar tidak digunakan oleh proses lain selama masa _cooldown_.
+- Klien HTTP cerdas yang mampu melakukan operasi "Terbang Di Tengah Badai". 
+- Melakukan *Auto-Retry* mandiri dengan mencari `TripleSet` pengganti baru jika TripleSet lama gagal tanpa sepengetahuan logic atas (selagi batas coba proxy dalam logic belum mencapai maksimal).
+- Jika ada key yang tewas terkena *Error 401*, engine ini yang mengirim *Query* ke Supabase Database langsung untuk men-drop key itu jadi flag `Dead`. 
 
-### 6. Centralized Storage (Supabase)
-Database PostgreSQL (via Supabase) menjadi komponen _Single Source of Truth_ yang mencatat:
-- Status langganan _Members_ & Kuota _Usage_ per user secara realtime.
-- Konfigurasi rotasi API Key & Proxy agar tersinkron di banyak _instance_ Worker atau Bot secara paralel.
-- Konfigurasi menu UI Admin (Teks Landing Page, Limit, Harga) bersifat dinamis sepenuhnya.
+### 6. Centralized Storage & Quota Logic (Supabase)
+Sistem ini tak sekadar menabung data; dia memproteksi aturan bisnis utama:
+- **Rule of Memberships**: Quota diperiksa `video_today < Plan Limit`. (ex. 10 jika Lite). Validasi dilakukan di Bot, increment Usage dieksekusi sebelum job dikirim, agar spammers tak melebihi kuota saat jeda request ke Worker. 
+- **Rule of Restraints**: Quota _trial_ otomatis berkurang permanen. Sistem menyimpan *Timestamp Reset Bulanan / Harian* dan dieksekusi secara pasif setiap ada user request di hari/bulan baru. 
+- **Shared States**: Supabase juga berfungsi merapikan config model (`models_status`) secara global agar jika di admin bot diset Non-aktif, seluruh bot klien seketika mencegah render ke parameter list tersebut.
+
+### 7. Multi-shot Scene Logic (Kling V3)
+Bot ini memiliki menu merangkai 10 Video (Scene) dari model Kling V3 yang kompleks:
+- Bot telegram merangkai input User -> array parameter prompt & durasi menjadi State User `state._shots`.
+- Worker akan mengeksekusi scene berurutan. Setelah scene-1 dirender oleh API (dengan memakan 1 sesi delay rendering lama), Worker menggunakan hasil render image-nya untuk dikombinasikan dengan scene-2. 
+- Logika sekuensial (Sequential) dijamin konsisten dan apabila terjadi error di scene ke-7, User tidak kehilangan 6 video scene awal.
+
 
 ## Tech Stack
 

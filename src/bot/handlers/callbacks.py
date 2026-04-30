@@ -921,6 +921,23 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             pass
         return
 
+    if data.startswith("v_key:"):
+        idx = int(data.split(":")[1])
+        keys = api_key_manager.get_all_keys()
+        if 0 <= idx < len(keys):
+            k = keys[idx]
+            now = int(time.time() * 1000)
+            status = "ON" if k.active and k.cooldown_until < now else ("CD" if k.active else "OFF")
+            msg = (
+                f"🔑 *Detail API Key*\n"
+                f"- Key: `{k.key}`\n"
+                f"- Status: {status}\n"
+                f"- Cooldown Until: {k.cooldown_until}\n"
+            )
+            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown")
+        await context.bot.answer_callback_query(query.id)
+        return
+
     if data.startswith("t_key:"):
         idx = int(data.split(":")[1])
         keys = api_key_manager.get_all_keys()
@@ -995,6 +1012,22 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
         except Exception:
             pass
+        return
+
+    if data.startswith("v_prx:"):
+        idx = int(data.split(":")[1])
+        proxies = proxy_manager.get_all_proxies()
+        if 0 <= idx < len(proxies):
+            p = proxies[idx]
+            status = "🟢 ON" if p.active else "🔴 OFF"
+            msg = (
+                f"🌐 *Detail Proxy*\n"
+                f"- Proxy: `{p.proxy}`\n"
+                f"- Status: {status}\n"
+                f"- Cooldown Until: {p.cooldown_until}\n"
+            )
+            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown")
+        await context.bot.answer_callback_query(query.id)
         return
 
     if data.startswith("t_prx:"):

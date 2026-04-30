@@ -112,12 +112,12 @@ class MemberManager:
             try:
                 expire_date = datetime.fromisoformat(data.expire_date.replace("Z", "+00:00"))
             except ValueError:
-                expire_date = datetime.min.replace(tzinfo=timezone.utc)
+                expire_date = None
         else:
-            expire_date = datetime.min.replace(tzinfo=timezone.utc)
+            expire_date = None
 
-        is_expired = now > expire_date
-        diff = abs((expire_date - now).days)
+        is_expired = (now > expire_date) if expire_date is not None else False
+        diff = abs((expire_date - now).days) if expire_date is not None else 0
 
         data.is_expired = is_expired
         data.remaining_days = diff

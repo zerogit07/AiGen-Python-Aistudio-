@@ -1,0 +1,7 @@
+python-telegram-bot==21.5
+supabase==2.9.1
+httpx==0.27.2
+python-dotenv==1.0.1
+aiohttp==3.10.10
+arq==0.26.3
+redis==5.2.1

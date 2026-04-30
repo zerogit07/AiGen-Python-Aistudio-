@@ -1,0 +1,20 @@
+"""GET List tasks — image-to-video/kling-v2-1-pro
+Docs: https://docs.freepik.com/api-reference/image-to-video/kling-v2.1-pro/get-kling-v2-1-pro
+Response codes: 200, 400, 401, 500, 503
+"""
+from __future__ import annotations
+
+import logging
+from src.services.request_engine import request_engine
+
+logger = logging.getLogger(__name__)
+
+BASE_URL = "https://api.freepik.com/v1/ai"
+STATUS_PATH = "image-to-video/kling-v2-1-pro"
+
+
+async def list_tasks(api_key: str) -> dict:
+    """GET /v1/ai/image-to-video/kling-v2-1-pro"""
+    url = f"{BASE_URL}/{STATUS_PATH}"
+    logger.info("[kling_2_1_pro] Listing all tasks")
+    return await request_engine(method="GET", url=url, force_api_key=api_key)

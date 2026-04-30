@@ -250,6 +250,32 @@ class MemberManager:
             return True
         return False
 
+    async def enable_all_members(self) -> None:
+        for m in self._members.values():
+            m.active = True
+        if supabase:
+            try:
+                await supabase.table("members").update({"active": True}).neq("active", True).execute()
+            except Exception as exc:
+                logger.error("Error enabling all members: %s", exc)
+
+    async def disable_all_members(self) -> None:
+        for m in self._members.values():
+            m.active = False
+        if supabase:
+            try:
+                await supabase.table("members").update({"active": False}).neq("active", False).execute()
+            except Exception as exc:
+                logger.error("Error disabling all members: %s", exc)
+
+    async def delete_all_members(self) -> None:
+        self._members.clear()
+        if supabase:
+            try:
+                await supabase.table("members").delete().neq("user_id", "").execute()
+            except Exception as exc:
+                logger.error("Error deleting all members: %s", exc)
+
     def get_all_members(self) -> dict[str, MemberData]:
         return self._members
 

@@ -16,6 +16,7 @@ from src.bot.menus.admin_ui import (
     get_landing_page_keyboard,
     get_limit_page_keyboard,
     get_manage_keys_keyboard,
+    get_manage_members_keyboard,
     get_manage_models_keyboard,
     get_manage_proxies_keyboard,
     get_member_dashboard,
@@ -1073,6 +1074,46 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
         except Exception:
             await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown", reply_markup=kb)
+        return
+
+    if data == "manage_members":
+        if not is_user_admin(user_id, state):
+            return
+        kb = get_manage_members_keyboard()
+        try:
+            await query.edit_message_text(text="⚙️ *Manajemen Member Bulk*", parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text="⚙️ *Manajemen Member Bulk*", parse_mode="Markdown", reply_markup=kb)
+        return
+
+    if data == "enable_all_members":
+        if not is_user_admin(user_id, state):
+            return
+        await member_manager.enable_all_members()
+        try:
+            await query.edit_message_text(text="🟢 Semua member diaktifkan!", reply_markup=get_manage_members_keyboard())
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text="🟢 Semua member diaktifkan!", reply_markup=get_manage_members_keyboard())
+        return
+
+    if data == "disable_all_members":
+        if not is_user_admin(user_id, state):
+            return
+        await member_manager.disable_all_members()
+        try:
+            await query.edit_message_text(text="🔴 Semua member dinonaktifkan!", reply_markup=get_manage_members_keyboard())
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text="🔴 Semua member dinonaktifkan!", reply_markup=get_manage_members_keyboard())
+        return
+
+    if data == "delete_all_members":
+        if not is_user_admin(user_id, state):
+            return
+        await member_manager.delete_all_members()
+        try:
+            await query.edit_message_text(text="🗑 Semua member dihapus!", reply_markup=get_manage_members_keyboard())
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text="🗑 Semua member dihapus!", reply_markup=get_manage_members_keyboard())
         return
 
     if data == "add_member_btn":

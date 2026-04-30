@@ -144,6 +144,8 @@ def get_member_dashboard(members: dict, member_count: int, trial_count: int) -> 
     pro_count = sum(1 for m in members.values() if m.plan.lower() == "pro")
     ultra_count = sum(1 for m in members.values() if m.plan.lower() == "ultra")
     
+    total_count = len(members)
+    
     message = (
         "\U0001f465 *Manajemen Member*\n\n"
         "\U0001f4ca *Statistik:*\n"
@@ -151,7 +153,7 @@ def get_member_dashboard(members: dict, member_count: int, trial_count: int) -> 
         f"- Pro: {pro_count}\n"
         f"- Ultra: {ultra_count}\n"
         f"- Trial: {trial_count}\n"
-        f"- Total: {member_count}\n\n"
+        f"- Total: {total_count}\n\n"
         "Pilih menu di bawah:"
     )
     keyboard = InlineKeyboardMarkup([
@@ -161,6 +163,7 @@ def get_member_dashboard(members: dict, member_count: int, trial_count: int) -> 
         ],
         [
             InlineKeyboardButton("\U0001f5d1 Hapus Member", callback_data="remove_member_btn"),
+            InlineKeyboardButton("\U0001f510 Manajemen", callback_data="manage_members"),
         ],
         [InlineKeyboardButton("\u2b05\ufe0f Kembali", callback_data="admin_panel_back")],
     ])
@@ -169,6 +172,9 @@ def get_member_dashboard(members: dict, member_count: int, trial_count: int) -> 
 
 def get_manage_members_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("\U0001f7e2 Aktifkan Semua", callback_data="enable_all_members")],
+        [InlineKeyboardButton("\U0001f534 Nonaktifkan Semua", callback_data="disable_all_members")],
+        [InlineKeyboardButton("\U0001f5d1 Hapus Semua", callback_data="delete_all_members")],
         [InlineKeyboardButton("\u2b05\ufe0f Kembali", callback_data="admin_member")],
     ])
 

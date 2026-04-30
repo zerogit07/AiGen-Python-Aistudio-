@@ -287,6 +287,13 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if state.waiting_payment_proof:
         state.waiting_payment_proof = False
         # Notify admins
+        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ Setujui", callback_data=f"approve_{user_id}_{state.temp_plan}"),
+                InlineKeyboardButton("❌ Tolak", callback_data=f"reject_{user_id}")
+            ]
+        ])
         for admin_id in ADMIN_IDS:
             try:
                 await context.bot.send_message(
@@ -299,6 +306,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                         f"Pesan: {text}"
                     ),
                     parse_mode="Markdown",
+                    reply_markup=keyboard,
                 )
             except Exception:
                 pass
@@ -367,6 +375,13 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if state.waiting_payment_proof:
         state.waiting_payment_proof = False
         caption = update.message.caption or ""
+        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ Setujui", callback_data=f"approve_{user_id}_{state.temp_plan}"),
+                InlineKeyboardButton("❌ Tolak", callback_data=f"reject_{user_id}")
+            ]
+        ])
         for admin_id in ADMIN_IDS:
             try:
                 await context.bot.send_photo(
@@ -380,6 +395,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                         f"Keterangan: {caption}"
                     ),
                     parse_mode="Markdown",
+                    reply_markup=keyboard,
                 )
             except Exception:
                 pass

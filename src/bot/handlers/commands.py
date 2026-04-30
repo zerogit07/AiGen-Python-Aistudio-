@@ -68,10 +68,11 @@ async def handle_start_command(
             except Exception:
                 pass
 
+        desc_text = description or "🔒 *AKSES TERKUNCI*\n\nSilakan pilih paket:"
         if not banner_url:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=description,
+                text=desc_text,
                 parse_mode="Markdown",
                 reply_markup=keyboard,
             )
@@ -87,7 +88,7 @@ async def handle_start_command(
             except Exception:
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text=description,
+                    text=desc_text,
                     parse_mode="Markdown",
                     reply_markup=keyboard,
                 )

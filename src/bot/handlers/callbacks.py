@@ -678,10 +678,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except Exception:
             pass
 
+        desc_text = description or "🔒 *AKSES TERKUNCI*\n\nSilakan pilih paket:"
         if not banner_url:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=description,
+                text=desc_text,
                 parse_mode="Markdown",
                 reply_markup=keyboard,
             )
@@ -697,7 +698,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             except Exception:
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=description,
+                    text=desc_text,
                     parse_mode="Markdown",
                     reply_markup=keyboard,
                 )
@@ -705,6 +706,54 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     if data == "back_main":
         await handle_start_command(update, context, is_edit=True)
+        return
+
+    # ─── Payment Approvals ───────────────────────────────
+    if data.startswith("approve_"):
+        if is_user_admin(user_id, state):
+            parts = data.split("_")
+            if len(parts) >= 3:
+                target_user_id = parts[1]
+                plan = parts[2]
+                
+                # Add user as member for 30 days
+                await member_manager.add_member(
+                    user_id=target_user_id,
+                    plan=plan,
+                    days=30,
+                    testing_quota=0
+                )
+                
+                await context.bot.send_message(
+                    chat_id=target_user_id,
+                    text=f"✅ *PEMBAYARAN DITERIMA*\n\nSelamat! Anda telah berlangganan paket *{plan.upper()}* selama 30 hari. Selamat menikmati fitur Premium!",
+                    parse_mode="Markdown"
+                )
+                
+                try:
+                    await query.edit_message_reply_markup(reply_markup=None)
+                    await query.message.reply_text(f"✅ User `{target_user_id}` berhasil disetujui untuk paket *{plan.upper()}*.", parse_mode="Markdown")
+                except Exception:
+                    pass
+        return
+
+    if data.startswith("reject_"):
+        if is_user_admin(user_id, state):
+            parts = data.split("_")
+            if len(parts) >= 2:
+                target_user_id = parts[1]
+                
+                await context.bot.send_message(
+                    chat_id=target_user_id,
+                    text="❌ *PEMBAYARAN DITOLAK*\n\nMaaf, bukti pembayaran Anda tidak valid atau transfer tidak ditemukan. Silakan hubungi admin.",
+                    parse_mode="Markdown"
+                )
+                
+                try:
+                    await query.edit_message_reply_markup(reply_markup=None)
+                    await query.message.reply_text(f"❌ Pembayaran untuk user `{target_user_id}` telah ditolak.", parse_mode="Markdown")
+                except Exception:
+                    pass
         return
 
     # ─── Admin Panel ─────────────────────────────────────

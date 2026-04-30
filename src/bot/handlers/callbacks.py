@@ -26,6 +26,8 @@ from src.bot.menus.admin_ui import (
     get_payment_page_keyboard,
     get_price_page_keyboard,
     get_proxy_dashboard,
+    get_proxy_list_keyboard,
+    get_key_list_keyboard,
     get_stats_menu_keyboard,
     get_usage_history_message,
 )
@@ -891,40 +893,56 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     if data == "list_keys_btn":
         keys = api_key_manager.get_all_keys()
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Kembali", callback_data="api_mgmt_menu")]])
         if not keys:
+            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Kembali", callback_data="api_mgmt_menu")]])
             try:
                 await query.edit_message_text(text="❌ Tidak ada API key tersimpan.", reply_markup=back_kb)
             except Exception:
                 await context.bot.send_message(chat_id=chat_id, text="❌ Tidak ada API key tersimpan.", reply_markup=back_kb)
             return
-        now = int(time.time() * 1000)
-        lines = ["*Daftar API Key:*\n"]
-        for i, k in enumerate(keys, 1):
-            status = "ON" if k.active and k.cooldown_until < now else ("CD" if k.active else "OFF")
-            lines.append(f"{i}. `{k.key[:12]}...` [{status}]")
-        
-        # Split message if too long
-        chunks = []
-        current_chunk = ""
-        for line in lines:
-            if len(current_chunk) + len(line) > 4000:
-                chunks.append(current_chunk)
-                current_chunk = line + "\n"
-            else:
-                current_chunk += line + "\n"
-        if current_chunk:
-            chunks.append(current_chunk)
             
-        for idx, chunk in enumerate(chunks):
-            kb = back_kb if idx == len(chunks) - 1 else None
-            try:
-                if idx == 0:
-                    await query.edit_message_text(text=chunk, parse_mode="Markdown", reply_markup=kb)
-                else:
-                    await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
-            except Exception:
-                await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
+        page = 1
+        msg, kb = get_key_list_keyboard(keys, page=page)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown", reply_markup=kb)
+        return
+
+    if data.startswith("p_key:"):
+        page = int(data.split(":")[1])
+        keys = api_key_manager.get_all_keys()
+        if not keys:
+            return
+        msg, kb = get_key_list_keyboard(keys, page=page)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
+        return
+
+    if data.startswith("t_key:"):
+        idx = int(data.split(":")[1])
+        keys = api_key_manager.get_all_keys()
+        if 0 <= idx < len(keys):
+            await api_key_manager.toggle_key(keys[idx].key)
+        msg, kb = get_key_list_keyboard(api_key_manager.get_all_keys(), page=1)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
+        return
+
+    if data.startswith("d_key:"):
+        idx = int(data.split(":")[1])
+        keys = api_key_manager.get_all_keys()
+        if 0 <= idx < len(keys):
+            await api_key_manager.remove_key(keys[idx].key)
+        msg, kb = get_key_list_keyboard(api_key_manager.get_all_keys(), page=1)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
         return
 
     # Proxy Management
@@ -958,34 +976,49 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if not proxies:
             await context.bot.send_message(chat_id=chat_id, text="Belum ada Proxy.")
             return
-        lines = []
-        for i, p in enumerate(proxies, 1):
-            status = "🟢" if p.active else "🔴"
-            masked = f"{p.proxy[:15]}...{p.proxy[-10:]}" if len(p.proxy) > 25 else p.proxy
-            lines.append(f"{i}. {status} `{masked}`")
-        
-        # Split message if too long
-        chunks = []
-        current_chunk = ""
-        for line in lines:
-            if len(current_chunk) + len(line) > 4000:
-                chunks.append(current_chunk)
-                current_chunk = line + "\n"
-            else:
-                current_chunk += line + "\n"
-        if current_chunk:
-            chunks.append(current_chunk)
+            
+        page = 1
+        msg, kb = get_proxy_list_keyboard(proxies, page=page)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown", reply_markup=kb)
+        return
 
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Kembali", callback_data="admin_proxy")]])
-        for idx, chunk in enumerate(chunks):
-            kb = back_kb if idx == len(chunks) - 1 else None
-            try:
-                if idx == 0:
-                    await query.edit_message_text(text=chunk, parse_mode="Markdown", reply_markup=kb)
-                else:
-                    await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
-            except Exception:
-                await context.bot.send_message(chat_id=chat_id, text=chunk, parse_mode="Markdown", reply_markup=kb)
+    if data.startswith("p_prx:"):
+        page = int(data.split(":")[1])
+        proxies = proxy_manager.get_all_proxies()
+        if not proxies:
+            return
+        msg, kb = get_proxy_list_keyboard(proxies, page=page)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
+        return
+
+    if data.startswith("t_prx:"):
+        idx = int(data.split(":")[1])
+        proxies = proxy_manager.get_all_proxies()
+        if 0 <= idx < len(proxies):
+            await proxy_manager.toggle_proxy(proxies[idx].proxy)
+        msg, kb = get_proxy_list_keyboard(proxy_manager.get_all_proxies(), page=1)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
+        return
+
+    if data.startswith("d_prx:"):
+        idx = int(data.split(":")[1])
+        proxies = proxy_manager.get_all_proxies()
+        if 0 <= idx < len(proxies):
+            await proxy_manager.remove_proxy(proxies[idx].proxy)
+        msg, kb = get_proxy_list_keyboard(proxy_manager.get_all_proxies(), page=1)
+        try:
+            await query.edit_message_text(text=msg, parse_mode="Markdown", reply_markup=kb)
+        except Exception:
+            pass
         return
 
     if data == "manage_proxies":

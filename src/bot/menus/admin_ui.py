@@ -224,6 +224,103 @@ def get_member_list_keyboard(members_list: list, page: int = 1, per_page: int = 
     
     return message, InlineKeyboardMarkup(keyboard)
 
+def get_proxy_list_keyboard(proxies_list: list, page: int = 1, per_page: int = 10) -> tuple[str, InlineKeyboardMarkup]:
+    total = len(proxies_list)
+    total_pages = math.ceil(total / per_page)
+    if total_pages == 0:
+        total_pages = 1
+    if page < 1:
+        page = 1
+    elif page > total_pages:
+        page = total_pages
+        
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_items = proxies_list[start_idx:end_idx]
+    
+    message = f"\U0001f310 *Daftar Proxy (Halaman {page}/{total_pages})*\n\n"
+    
+    keyboard = []
+    for i, p in enumerate(page_items):
+        actual_idx = start_idx + i
+        status_icon = "\U0001f7e2" if p.active else "\U0001f534"
+        url = p.proxy
+        url_short = url[:15] + ".." if len(url) > 15 else url
+        
+        row = [
+            InlineKeyboardButton(f"\U0001f310 {url_short}", callback_data="ignore"),
+            InlineKeyboardButton(status_icon, callback_data=f"t_prx:{actual_idx}"),
+            InlineKeyboardButton("\U0001f5d1\ufe0f", callback_data=f"d_prx:{actual_idx}"),
+        ]
+        keyboard.append(row)
+        
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("\u2b05\ufe0f Prev", callback_data=f"p_prx:{page-1}"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton("Next \u27a1\ufe0f", callback_data=f"p_prx:{page+1}"))
+        
+    if nav_row:
+        keyboard.append(nav_row)
+        
+    keyboard.append([InlineKeyboardButton("\u2b05\ufe0f Kembali", callback_data="admin_proxy")])
+    
+    return message, InlineKeyboardMarkup(keyboard)
+
+def get_key_list_keyboard(keys_list: list, page: int = 1, per_page: int = 10) -> tuple[str, InlineKeyboardMarkup]:
+    total = len(keys_list)
+    total_pages = math.ceil(total / per_page)
+    if total_pages == 0:
+        total_pages = 1
+    if page < 1:
+        page = 1
+    elif page > total_pages:
+        page = total_pages
+        
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_items = keys_list[start_idx:end_idx]
+    
+    message = f"\U0001f511 *Daftar API Key (Halaman {page}/{total_pages})*\n\n"
+    
+    keyboard = []
+    import time
+    now_ms = int(time.time() * 1000)
+    for i, k in enumerate(page_items):
+        actual_idx = start_idx + i
+        # logic for status icon based on cooldown
+        is_cd = k.active and k.cooldown_until > now_ms
+        if is_cd:
+            status_icon = "\U0001f7e1"
+        elif k.active:
+            status_icon = "\U0001f7e2"
+        else:
+            status_icon = "\U0001f534"
+            
+        key_str = k.key
+        key_short = key_str[:12] + ".." if len(key_str) > 12 else key_str
+        
+        row = [
+            InlineKeyboardButton(f"\U0001f511 {key_short}", callback_data="ignore"),
+            InlineKeyboardButton(status_icon, callback_data=f"t_key:{actual_idx}"),
+            InlineKeyboardButton("\U0001f5d1\ufe0f", callback_data=f"d_key:{actual_idx}"),
+        ]
+        keyboard.append(row)
+        
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("\u2b05\ufe0f Prev", callback_data=f"p_key:{page-1}"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton("Next \u27a1\ufe0f", callback_data=f"p_key:{page+1}"))
+        
+    if nav_row:
+        keyboard.append(nav_row)
+        
+    keyboard.append([InlineKeyboardButton("\u2b05\ufe0f Kembali", callback_data="api_mgmt_menu")])
+    
+    return message, InlineKeyboardMarkup(keyboard)
+
+
 
 def get_model_management_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([

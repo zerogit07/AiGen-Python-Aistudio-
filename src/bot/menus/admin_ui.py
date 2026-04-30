@@ -111,9 +111,9 @@ def get_proxy_dashboard(all_proxies: list[ProxyEntry]) -> tuple[str, InlineKeybo
     message = (
         "\U0001f310 *Manajemen Proxy*\n\n"
         "\U0001f4ca *Statistik:*\n"
-        f"- Total Proxy: {len(all_proxies)}\n"
         f"- Aktif: \U0001f7e2 {active_count}\n"
-        f"- Mati/Nonaktif: \U0001f534 {len(all_proxies) - active_count}\n\n"
+        f"- Mati/Nonaktif: \U0001f534 {len(all_proxies) - active_count}\n"
+        f"- Total: {len(all_proxies)}\n\n"
         "Pilih menu di bawah untuk mengelola proxy."
     )
     keyboard = InlineKeyboardMarkup([
@@ -254,10 +254,10 @@ def get_api_key_dashboard(keys: list, active_count: int, cooldown_count: int, de
     message = (
         "\U0001f511 *Manajemen API Key*\n\n"
         "\U0001f4ca *Statistik:*\n"
-        f"- Total Key: {len(keys)}\n"
         f"- Aktif: \U0001f7e2 {active_count}\n"
         f"- Cooldown: \U0001f7e1 {cooldown_count}\n"
-        f"- Mati: \U0001f534 {dead_count}\n\n"
+        f"- Mati: \U0001f534 {dead_count}\n"
+        f"- Total: {len(keys)}\n\n"
         "Pilih menu di bawah:"
     )
     keyboard = InlineKeyboardMarkup([

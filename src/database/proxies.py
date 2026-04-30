@@ -101,20 +101,17 @@ class ProxyManager:
     async def check_all_proxies(self) -> dict[str, int]:
         active_count = 0
         dead_count = 0
-        async with httpx.AsyncClient(timeout=5) as client:
-            for p in self._proxies:
-                try:
-                    await client.get(
-                        "http://www.google.com",
-                        proxy=p.proxy,
-                    )
-                    p.active = True
-                    p.cooldown_until = 0
-                    active_count += 1
-                except Exception:
-                    p.active = False
-                    dead_count += 1
-                if supabase:
+        for p in self._proxies:
+            try:
+                async with httpx.AsyncClient(proxy=p.proxy, timeout=5) as client:
+                    await client.get("http://www.google.com")
+                p.active = True
+                p.cooldown_until = 0
+                active_count += 1
+            except Exception:
+                p.active = False
+                dead_count += 1
+            if supabase:
                     try:
                         await supabase.table("proxies").update(
                             {"active": p.active, "cooldown_until": p.cooldown_until}

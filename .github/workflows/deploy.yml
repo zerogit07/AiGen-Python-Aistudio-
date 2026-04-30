@@ -15,9 +15,10 @@ jobs:
           script: |
             cd ~/AiGen-Python-Aistudio-
             git pull origin main
+            [ ! -d "venv" ] && python3 -m venv venv
             source venv/bin/activate && pip install -r requirements.txt
             screen -S server -X quit || true
             screen -S worker -X quit || true
             sleep 2
-            screen -dmS server bash -c 'source venv/bin/activate && python server.py'
-            screen -dmS worker bash -c 'source venv/bin/activate && python worker.py'
+            screen -dmS server bash -c 'source venv/bin/activate && python server.py > server.log 2>&1'
+            screen -dmS worker bash -c 'source venv/bin/activate && python worker.py > worker.log 2>&1'

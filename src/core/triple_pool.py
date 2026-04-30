@@ -24,24 +24,24 @@ class TriplePool:
 
     async def refresh(self) -> None:
         async with self._lock:
-            self._refresh_locked()
+            await self._refresh_locked()
 
-    def _refresh_locked(self) -> None:
+    async def _refresh_locked(self) -> None:
         active_keys = [item.key for item in api_key_manager.get_all_keys() if item.active]
-        active_proxies = [item.proxy for item in proxy_manager.get_all_proxies() if item.active]
+        active_proxy_urls = [item.proxy for item in proxy_manager.get_all_proxies() if item.active]
         fingerprints = FINGERPRINTS or [{"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"}]
 
         if not active_keys:
             self._triples = []
             return
 
-        if not active_proxies:
+        if not active_proxy_urls:
             self._triples = []
             logger.error("TriplePool: Tidak ada proxy aktif. Mode Wajib Proxy memblokir proses.")
             return
 
         previous_state = {
-            (triple.api_key, triple.proxy): {
+            (triple.api_key, triple.api_url): {
                 "in_use": triple.in_use,
                 "last_used": triple.last_used,
                 "burned": triple.burned,
@@ -51,14 +51,15 @@ class TriplePool:
 
         rebuilt: list[TripleSet] = []
         for index, api_key in enumerate(active_keys):
-            proxy = active_proxies[index % len(active_proxies)]
+            api_url = active_proxy_urls[index % len(active_proxy_urls)]
             fingerprint = dict(fingerprints[index % len(fingerprints)])
-            state = previous_state.get((api_key, proxy), {})
+            state = previous_state.get((api_key, api_url), {})
             rebuilt.append(
                 TripleSet(
                     api_key=api_key,
-                    proxy=proxy,
+                    proxy=api_url,
                     fingerprint=fingerprint,
+                    api_url=api_url,
                     in_use=state.get("in_use", False),
                     last_used=state.get("last_used", 0.0),
                     burned=state.get("burned", False),
@@ -83,7 +84,7 @@ class TriplePool:
         while True:
             async with self._lock:
                 if not self._triples:
-                    self._refresh_locked()
+                    await self._refresh_locked()
 
                 if not self._triples:
                     active_keys = [item.key for item in api_key_manager.get_all_keys() if item.active]
@@ -102,6 +103,13 @@ class TriplePool:
                     triple.in_use = True
                     triple.burned = False
                     self._rr_index = (idx + 1) % total
+                    
+                    if "/change?key=" in triple.api_url:
+                        rotated = await proxy_manager.rotate_proxy(triple.api_url)
+                        triple.proxy = rotated
+                    else:
+                        triple.proxy = triple.api_url
+
                     logger.info(
                         "Triple acquired: key=%s proxy=%s",
                         triple.api_key[:8],
@@ -113,6 +121,7 @@ class TriplePool:
 
     async def release(self, triple: TripleSet) -> None:
         async with self._lock:
+            triple.proxy = triple.api_url
             triple.in_use = False
             triple.burned = False
             triple.last_used = time.time()
@@ -120,6 +129,7 @@ class TriplePool:
 
     async def mark_burned(self, triple: TripleSet) -> None:
         async with self._lock:
+            triple.proxy = triple.api_url
             triple.in_use = False
             triple.burned = True
             triple.last_used = time.time()

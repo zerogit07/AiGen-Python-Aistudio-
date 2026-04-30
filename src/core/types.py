@@ -23,6 +23,7 @@ class TripleSet:
     api_key: str
     proxy: str
     fingerprint: dict
+    api_url: str = ""
     in_use: bool = False
     last_used: float = 0.0
     burned: bool = False

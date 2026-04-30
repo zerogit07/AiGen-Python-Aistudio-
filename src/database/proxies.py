@@ -130,6 +130,26 @@ class ProxyManager:
     def get_all_proxies(self) -> list[ProxyEntry]:
         return self._proxies
 
+    async def rotate_proxy(self, api_url: str) -> str:
+        if "/change?key=" in api_url:
+            from src.core.constants import PROXY_ROTATION_TIMEOUT
+            try:
+                async with httpx.AsyncClient(timeout=PROXY_ROTATION_TIMEOUT) as client:
+                    resp = await client.get(api_url)
+                    resp.raise_for_status()
+                    text = resp.text.strip()
+                    if text:
+                        if not text.startswith("http"):
+                            return f"http://{text}"
+                        return text
+                    else:
+                        logger.error("Empty response from proxy rotation API")
+                        return api_url
+            except Exception as e:
+                logger.error("Failed to rotate proxy via API %s: %s", api_url, e)
+                return api_url
+        return api_url
+
     def get_rotated_proxy_url(self) -> str | None:
         now = int(time.time() * 1000)
         available = [p for p in self._proxies if p.active and p.cooldown_until < now]

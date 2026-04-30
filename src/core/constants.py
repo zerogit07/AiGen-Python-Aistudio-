@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+PROXY_ROTATION_TIMEOUT = 10
+
 
 @dataclass
 class ModelConfig:

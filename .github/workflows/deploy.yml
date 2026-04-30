@@ -20,5 +20,5 @@ jobs:
             screen -S server -X quit || true
             screen -S worker -X quit || true
             sleep 2
-            screen -dmS server bash -c 'source venv/bin/activate && python -u server.py > server.log 2>&1'
-            screen -dmS worker bash -c 'source venv/bin/activate && python -u worker.py > worker.log 2>&1'
+            screen -dmS server bash -c 'source venv/bin/activate && while true; do python -u server.py >> server.log 2>&1; echo "Crased, restarting in 3s..." >> server.log; sleep 3; done'
+            screen -dmS worker bash -c 'source venv/bin/activate && while true; do python -u worker.py >> worker.log 2>&1; echo "Crased, restarting in 3s..." >> worker.log; sleep 3; done'

@@ -249,7 +249,7 @@ def get_proxy_list_keyboard(proxies_list: list, page: int = 1, per_page: int = 1
         
         row = [
             InlineKeyboardButton(f"\U0001f310 {url_short}", callback_data=f"v_prx:{actual_idx}"),
-            InlineKeyboardButton("Lihat \U0001f441\ufe0f", callback_data=f"v_prx:{actual_idx}"),
+            InlineKeyboardButton("\U0001f441\ufe0f", callback_data=f"v_prx:{actual_idx}"),
             InlineKeyboardButton(status_icon, callback_data=f"t_prx:{actual_idx}"),
             InlineKeyboardButton("\U0001f5d1\ufe0f", callback_data=f"d_prx:{actual_idx}"),
         ]
@@ -303,7 +303,7 @@ def get_key_list_keyboard(keys_list: list, page: int = 1, per_page: int = 10) ->
         
         row = [
             InlineKeyboardButton(f"\U0001f511 {key_short}", callback_data=f"v_key:{actual_idx}"),
-            InlineKeyboardButton("Lihat \U0001f441\ufe0f", callback_data=f"v_key:{actual_idx}"),
+            InlineKeyboardButton("\U0001f441\ufe0f", callback_data=f"v_key:{actual_idx}"),
             InlineKeyboardButton(status_icon, callback_data=f"t_key:{actual_idx}"),
             InlineKeyboardButton("\U0001f5d1\ufe0f", callback_data=f"d_key:{actual_idx}"),
         ]

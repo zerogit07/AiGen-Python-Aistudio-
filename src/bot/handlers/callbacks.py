@@ -740,7 +740,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         masked = f"{k.key[:4]}****{k.key[-4:]}"
                     else:
                         masked = "****"
-                    await redis.rpush(f"check_batch_results:{batch_id}", f"🔑 {key_label} (`{masked}`): ❌ Failed (Enqueue Error)")
+                    await redis.hset(
+                        f"check_batch_results:{batch_id}", 
+                        mapping={f"failed_enqueue_{i}": f"🔑 {key_label} (`{masked}`): ❌ Failed (Enqueue Error)"}
+                    )
                 except Exception:
                     pass
                 

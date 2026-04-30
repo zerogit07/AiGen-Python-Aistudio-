@@ -66,8 +66,19 @@ async def _get_redis_pool() -> ArqRedis:
 
 async def init_key_check_batch(batch_id: str, expected_count: int) -> None:
     redis = await _get_redis_pool()
-    await redis.set(f"check_batch_total:{batch_id}", expected_count, ex=3600)
+    await redis.set(f"check_batch_total:{batch_id}", expected_count, ex=600)
     await redis.delete(f"check_batch_results:{batch_id}")
+    await redis.delete(f"check_batch_finished:{batch_id}")
+
+async def add_check_batch_timeout_job(batch_id: str, chat_id: int) -> str:
+    redis = await _get_redis_pool()
+    job = await redis.enqueue_job(
+        "process_check_batch_timeout",
+        batch_id=batch_id,
+        chat_id=chat_id,
+        _defer_by=300
+    )
+    return job.job_id if job else ""
 
 async def add_check_single_key_job(admin_id: int, chat_id: int, api_key: str, key_label: str, batch_id: str) -> str:
     redis = await _get_redis_pool()

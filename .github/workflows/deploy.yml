@@ -1,0 +1,23 @@
+name: Auto Deploy
+on:
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            cd ~/AiGen-Python-Aistudio-
+            git pull origin main
+            source venv/bin/activate && pip install -r requirements.txt
+            screen -S server -X stuff $'\003'
+            screen -S worker -X stuff $'\003'
+            sleep 2
+            screen -S server -X stuff 'source venv/bin/activate && python server.py\n'
+            screen -S worker -X stuff 'source venv/bin/activate && python worker.py\n'

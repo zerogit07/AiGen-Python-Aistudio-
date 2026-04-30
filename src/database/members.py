@@ -111,6 +111,8 @@ class MemberManager:
         if data.expire_date:
             try:
                 expire_date = datetime.fromisoformat(data.expire_date.replace("Z", "+00:00"))
+                if expire_date.tzinfo is None:
+                    expire_date = expire_date.replace(tzinfo=timezone.utc)
             except ValueError:
                 expire_date = None
         else:

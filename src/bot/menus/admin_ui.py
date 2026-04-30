@@ -213,6 +213,8 @@ def get_api_key_dashboard(keys: list, active_count: int, cooldown_count: int, de
 def get_manage_keys_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("\U0001f7e2 Aktifkan Semua", callback_data="enable_all_keys")],
+        [InlineKeyboardButton("\U0001f534 Nonaktifkan Semua", callback_data="disable_all_keys")],
+        [InlineKeyboardButton("\U0001f5d1 Hapus Semua", callback_data="delete_all_keys")],
         [InlineKeyboardButton("\u2b05\ufe0f Kembali", callback_data="api_mgmt_menu")],
     ])
 

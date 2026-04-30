@@ -80,6 +80,7 @@ class UserState:
     awaiting_api_key: bool = False
     waiting_proxy: bool = False
     waiting_add_member: bool = False
+    waiting_remove_member: bool = False
     waiting_broadcast: bool = False
     broadcast_target: Optional[str] = None  # "all" | "member" | "trial"
     waiting_payment_proof: bool = False

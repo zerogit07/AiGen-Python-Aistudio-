@@ -230,6 +230,13 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
 
+    if state.waiting_remove_member:
+        state.waiting_remove_member = False
+        target_uid = text.strip()
+        await member_manager.remove_member(target_uid)
+        await update.message.reply_text(f"🗑 Member `{target_uid}` berhasil dihapus.", parse_mode="Markdown")
+        return
+
     # Broadcast
     if state.waiting_broadcast:
         state.waiting_broadcast = False

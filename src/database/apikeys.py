@@ -137,6 +137,23 @@ class ApiKeyManager:
             except Exception as exc:
                 logger.error("Error enabling all keys: %s", exc)
 
+    async def disable_all(self) -> None:
+        for k in self._keys:
+            k.active = False
+        if supabase:
+            try:
+                supabase.table("api_keys").update({"active": False}).neq("key", "").execute()
+            except Exception as exc:
+                logger.error("Error disabling all keys: %s", exc)
+
+    async def delete_all(self) -> None:
+        self._keys = []
+        if supabase:
+            try:
+                supabase.table("api_keys").delete().neq("key", "").execute()
+            except Exception as exc:
+                logger.error("Error deleting all keys: %s", exc)
+
     async def test_all_keys(self) -> dict[str, int]:
         valid = 0
         limit = 0

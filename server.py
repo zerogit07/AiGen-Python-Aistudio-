@@ -63,11 +63,14 @@ async def post_init(application: Application) -> None:
     logger.info("All data loaded successfully.")
 
     # Clear and re-set bot commands
-    await application.bot.delete_my_commands()
-    await application.bot.set_my_commands([
-        ("start", "Menu Utama"),
-        ("admin", "Panel Admin"),
-    ])
+    try:
+        await application.bot.delete_my_commands(read_timeout=20, connect_timeout=20)
+        await application.bot.set_my_commands([
+            ("start", "Menu Utama"),
+            ("admin", "Panel Admin"),
+        ], read_timeout=20, connect_timeout=20)
+    except Exception as e:
+        logger.warning("Failed to set bot commands during startup: %s", e)
 
     # Start background state cleaner
     asyncio.create_task(start_state_cleaner())
@@ -107,6 +110,11 @@ def main() -> None:
     application = (
         Application.builder()
         .token(bot_token)
+        .connect_timeout(20.0)
+        .read_timeout(20.0)
+        .write_timeout(20.0)
+        .pool_timeout(20.0)
+        .get_updates_read_timeout(30.0)
         .post_init(post_init)
         .build()
     )

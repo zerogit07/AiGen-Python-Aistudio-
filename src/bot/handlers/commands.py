@@ -16,17 +16,22 @@ from src.database.usage import usage_manager
 logger = logging.getLogger(__name__)
 
 
+import time
+
 async def handle_start_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     is_edit: bool = False,
 ) -> None:
+    t0 = time.time()
     user = update.effective_user
     if not user:
         return
 
     user_id = user.id
     state = await get_or_create_state(user_id, user.username, user.first_name, user.last_name)
+    t_state = time.time()
+    logger.info("[handle_start] get_or_create_state took %.2fs", t_state - t0)
 
     state.step = None
     state.model = None
@@ -34,6 +39,8 @@ async def handle_start_command(
     state.use_image = False
 
     member_data = await member_manager.sync_member(user_id)
+    t_sync = time.time()
+    logger.info("[handle_start] sync_member took %.2fs", t_sync - t_state)
     is_trial_exhausted = (
         member_data
         and member_data.plan == "testing"
@@ -95,8 +102,14 @@ async def handle_start_command(
         return
 
     # User has active membership
-    usage = await usage_manager.get_usage(user_id)
-    active_processes = await member_manager.count_active_processes(user_id)
+    import asyncio
+    usage, active_processes = await asyncio.gather(
+        usage_manager.get_usage(user_id),
+        member_manager.count_active_processes(user_id)
+    )
+    t_usage = time.time()
+    logger.info("[handle_start] gather usage+processes took %.2fs", t_usage - t_sync)
+
     max_process = member_manager.get_max_process(member_data.plan, user_id)
     daily_limit = member_manager.get_daily_limit(member_data.plan, user_id)
 

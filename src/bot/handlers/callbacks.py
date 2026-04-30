@@ -62,16 +62,22 @@ logger = logging.getLogger(__name__)
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    t0 = time.time()
     query = update.callback_query
     if not query or not query.data:
         return
     await query.answer()
+    t_answer = time.time()
 
     user_id = query.from_user.id
     data = query.data
     chat_id = update.effective_chat.id
-    logger.info("[CallbackQuery] User: %d, Data: %s", user_id, data)
+    logger.info("[CallbackQuery] User: %d, Data: %s | Answer took: %.2fs", user_id, data, t_answer - t0)
+
     state = await get_or_create_state(user_id, query.from_user.username, query.from_user.first_name, query.from_user.last_name)
+    t_state = time.time()
+    logger.info("[CallbackQuery] State loaded in %.2fs", t_state - t_answer)
+
 
     # ─── KV3 Panel Callbacks ─────────────────────────────
     kv3 = get_kv3_state(user_id)

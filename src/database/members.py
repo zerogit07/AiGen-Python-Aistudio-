@@ -62,8 +62,18 @@ class MemberManager:
 
     async def sync_member(self, user_id: int | str) -> MemberData | None:
         id_str = str(user_id)
+        
+        # Rate limit DB fetches to once per 60 seconds per user
+        import time
+        now = time.time()
+        if not hasattr(self, "_last_sync"):
+            self._last_sync = {}
+        if id_str in self._last_sync and now - self._last_sync[id_str] < 60:
+            return self.get_member_data(user_id)
+
         if supabase:
             try:
+                self._last_sync[id_str] = now
                 resp = (
                     await supabase.table("members")
                     .select("*")
@@ -82,7 +92,8 @@ class MemberManager:
                     )
                     self._members[id_str] = new_data
             except Exception as exc:
-                logger.error("Error syncing member %s: %s", id_str, exc)
+                # 406 or Not Found is expected if member doesn't exist
+                pass
         return self.get_member_data(user_id)
 
     async def count_active_processes(self, user_id: int | str) -> int:

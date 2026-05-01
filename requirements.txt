@@ -5,3 +5,5 @@ python-dotenv==1.0.1
 aiohttp==3.10.10
 arq==0.26.3
 redis==5.2.1
+fastapi==0.111.0
+uvicorn==0.30.1

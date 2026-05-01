@@ -101,13 +101,22 @@ async def periodic_proxy_check(application: Application) -> None:
             logger.error("[Proxy] Background check failed: %s", exc)
 
 
-def main() -> None:
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import uvicorn
+
+bot_app = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global bot_app
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not bot_token:
         logger.error("TELEGRAM_BOT_TOKEN is not set!")
         sys.exit(1)
 
-    application = (
+    bot_app = (
         Application.builder()
         .token(bot_token)
         .connect_timeout(20.0)
@@ -120,15 +129,43 @@ def main() -> None:
     )
 
     # Register handlers
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("admin", admin_command))
-    application.add_handler(CallbackQueryHandler(callback_handler))
-    application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
+    bot_app.add_handler(CommandHandler("start", start_command))
+    bot_app.add_handler(CommandHandler("admin", admin_command))
+    bot_app.add_handler(CallbackQueryHandler(callback_handler))
+    bot_app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
+    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 
-    # Start polling
-    application.run_polling(drop_pending_updates=True)
+    logger.info("Initializing bot application...")
+    await bot_app.initialize()
+    await bot_app.start()
+    try:
+        await bot_app.updater.start_polling(drop_pending_updates=True)
+        logger.info("Bot is polling.")
+    except Exception as e:
+        logger.warning(f"Polling already running or error: {e}")
 
+    yield
+
+    logger.info("Shutting down bot application...")
+    if bot_app.updater:
+        await bot_app.updater.stop()
+    await bot_app.stop()
+    await bot_app.shutdown()
+
+app = FastAPI(lifespan=lifespan, title="AiGen Studio API")
+
+@app.get("/")
+async def root():
+    return {"message": "AiGen Studio Bot Service is running."}
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+def main() -> None:
+    port = int(os.environ.get("PORT", 3000))
+    logger.info(f"Starting FastAPI server on port {port}...")
+    uvicorn.run("server:app", host="0.0.0.0", port=port, log_level="info")
 
 if __name__ == "__main__":
     main()

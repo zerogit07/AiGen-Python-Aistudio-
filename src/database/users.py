@@ -36,20 +36,25 @@ class UserManager:
         if id_str not in self._users:
             self._users.add(id_str)
             if supabase:
-                try:
-                    await supabase.table("users").upsert(
-                        {
-                            "id": int(id_str),
-                            "username": username or "",
-                            "first_name": first_name or "",
-                            "last_name": last_name or "",
-                            "joined_at": datetime.now(timezone.utc).isoformat(),
-                        },
-                        on_conflict="id",
-                    ).execute()
-                    logger.info("Saved new user %s to Supabase", id_str)
-                except Exception as exc:
-                    logger.error("Error saving user %s to Supabase: %s", id_str, exc)
+                import asyncio
+                
+                async def _save():
+                    try:
+                        await supabase.table("users").upsert(
+                            {
+                                "id": int(id_str),
+                                "username": username or "",
+                                "first_name": first_name or "",
+                                "last_name": last_name or "",
+                                "joined_at": datetime.now(timezone.utc).isoformat(),
+                            },
+                            on_conflict="id",
+                        ).execute()
+                        logger.info("Saved new user %s to Supabase", id_str)
+                    except Exception as exc:
+                        logger.error("Error saving user %s to Supabase: %s", id_str, exc)
+                
+                asyncio.create_task(_save())
 
     async def get_user_data(self, user_id: int | str) -> dict | None:
         if not supabase:

@@ -61,15 +61,22 @@ from src.services.stats import global_logs, global_stats
 logger = logging.getLogger(__name__)
 
 
+import asyncio
+
+async def _safe_answer(query):
+    try:
+        await query.answer()
+    except Exception:
+        pass
+
 async def _callback_handler_impl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     t0 = time.time()
     query = update.callback_query
     if not query or not query.data:
         return
-    try:
-        await query.answer()
-    except Exception as e:
-        logger.warning(f"Failed to answer query early: {e}")
+    
+    # Run answer in background so it doesn't block processing
+    asyncio.create_task(_safe_answer(query))
     t_answer = time.time()
 
     user_id = query.from_user.id

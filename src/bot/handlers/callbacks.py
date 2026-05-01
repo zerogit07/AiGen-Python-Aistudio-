@@ -75,8 +75,10 @@ async def _callback_handler_impl(update: Update, context: ContextTypes.DEFAULT_T
     if not query or not query.data:
         return
     
-    # Run answer in background so it doesn't block processing
-    asyncio.create_task(_safe_answer(query))
+    try:
+        await query.answer()
+    except Exception:
+        pass
     t_answer = time.time()
 
     user_id = query.from_user.id
@@ -357,10 +359,14 @@ async def _callback_handler_impl(update: Update, context: ContextTypes.DEFAULT_T
         state.temp_image_refs = []
         state.shots = []
 
+        kv3_state_obj = get_kv3_state(user_id)
+        if hasattr(query, 'message') and query.message:
+            kv3_state_obj.panel_message_id = query.message.message_id
+
         if model_id in ("kling_v3", "kling_v3_omni"):
-            await render_kling_v3_panel(context.bot, chat_id, user_id, is_edit=False, force_model=model_id)
+            await render_kling_v3_panel(context.bot, chat_id, user_id, is_edit=True, force_model=model_id)
         elif model_id == "kling_o1":
-            await render_kling_v3_panel(context.bot, chat_id, user_id, is_edit=False, force_model="kling_o1")
+            await render_kling_v3_panel(context.bot, chat_id, user_id, is_edit=True, force_model="kling_o1")
         elif model_id == "nano_banana_flash":
             state.resolution = "1k"
             state.aspect_ratio = "portrait_9_16"

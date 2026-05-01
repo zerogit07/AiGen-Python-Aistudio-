@@ -66,7 +66,10 @@ async def _callback_handler_impl(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     if not query or not query.data:
         return
-    # await query.answer() # Removed early answer to prevent conflicts
+    try:
+        await query.answer()
+    except Exception as e:
+        logger.warning(f"Failed to answer query early: {e}")
     t_answer = time.time()
 
     user_id = query.from_user.id
@@ -1521,10 +1524,4 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             logger.warning("[PERFORMANCE] Callback '%s' took %.2f seconds! WARNING", data, elapsed)
         else:
             logger.info("[PERFORMANCE] Callback '%s' took %.2f seconds.", data, elapsed)
-        
-        # Ensure we always answer the query to stop the loading spinner, if not already answered
-        try:
-            if update.callback_query:
-                await update.callback_query.answer()
-        except Exception:
-            pass
+

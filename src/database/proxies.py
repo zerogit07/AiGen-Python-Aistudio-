@@ -99,25 +99,36 @@ class ProxyManager:
                 pass
 
     async def check_all_proxies(self) -> dict[str, int]:
+        import asyncio
         active_count = 0
         dead_count = 0
-        for p in self._proxies:
+        
+        async def _check_single(p) -> bool:
             try:
                 async with httpx.AsyncClient(proxy=p.proxy, timeout=5) as client:
                     await client.get("http://www.google.com")
-                p.active = True
-                p.cooldown_until = 0
-                active_count += 1
+                return True
             except Exception:
-                p.active = False
+                return False
+
+        results = await asyncio.gather(*[_check_single(p) for p in self._proxies])
+        
+        for p, is_active in zip(self._proxies, results):
+            p.active = is_active
+            p.cooldown_until = 0 if is_active else p.cooldown_until
+            if is_active:
+                active_count += 1
+            else:
                 dead_count += 1
+                
             if supabase:
-                    try:
-                        await supabase.table("proxies").update(
-                            {"active": p.active, "cooldown_until": p.cooldown_until}
-                        ).eq("proxy", p.proxy).execute()
-                    except Exception:
-                        pass
+                try:
+                    await supabase.table("proxies").update(
+                        {"active": p.active, "cooldown_until": p.cooldown_until}
+                    ).eq("proxy", p.proxy).execute()
+                except Exception:
+                    pass
+
         return {
             "total": len(self._proxies),
             "active_count": active_count,

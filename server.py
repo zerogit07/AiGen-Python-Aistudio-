@@ -113,44 +113,44 @@ async def lifespan(app: FastAPI):
     global bot_app
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not bot_token:
-        logger.error("TELEGRAM_BOT_TOKEN is not set!")
-        sys.exit(1)
+        logger.error("TELEGRAM_BOT_TOKEN is not set! Telegram bot will NOT start.")
+    else:
+        bot_app = (
+            Application.builder()
+            .token(bot_token)
+            .connect_timeout(20.0)
+            .read_timeout(20.0)
+            .write_timeout(20.0)
+            .pool_timeout(20.0)
+            .get_updates_read_timeout(30.0)
+            .post_init(post_init)
+            .build()
+        )
 
-    bot_app = (
-        Application.builder()
-        .token(bot_token)
-        .connect_timeout(20.0)
-        .read_timeout(20.0)
-        .write_timeout(20.0)
-        .pool_timeout(20.0)
-        .get_updates_read_timeout(30.0)
-        .post_init(post_init)
-        .build()
-    )
+        # Register handlers
+        bot_app.add_handler(CommandHandler("start", start_command))
+        bot_app.add_handler(CommandHandler("admin", admin_command))
+        bot_app.add_handler(CallbackQueryHandler(callback_handler))
+        bot_app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
+        bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 
-    # Register handlers
-    bot_app.add_handler(CommandHandler("start", start_command))
-    bot_app.add_handler(CommandHandler("admin", admin_command))
-    bot_app.add_handler(CallbackQueryHandler(callback_handler))
-    bot_app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
-    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
-
-    logger.info("Initializing bot application...")
-    await bot_app.initialize()
-    await bot_app.start()
-    try:
-        await bot_app.updater.start_polling(drop_pending_updates=True)
-        logger.info("Bot is polling.")
-    except Exception as e:
-        logger.warning(f"Polling already running or error: {e}")
+        logger.info("Initializing bot application...")
+        await bot_app.initialize()
+        await bot_app.start()
+        try:
+            await bot_app.updater.start_polling(drop_pending_updates=True)
+            logger.info("Bot is polling.")
+        except Exception as e:
+            logger.warning(f"Polling already running or error: {e}")
 
     yield
 
-    logger.info("Shutting down bot application...")
-    if bot_app.updater:
-        await bot_app.updater.stop()
-    await bot_app.stop()
-    await bot_app.shutdown()
+    if bot_app:
+        logger.info("Shutting down bot application...")
+        if bot_app.updater:
+            await bot_app.updater.stop()
+        await bot_app.stop()
+        await bot_app.shutdown()
 
 app = FastAPI(lifespan=lifespan, title="AiGen Studio API")
 
